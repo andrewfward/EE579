@@ -31,8 +31,11 @@ void ultrasoundTask(void *pvParameters) {
   const TickType_t xFrequency = 60/ portTICK_PERIOD_MS;
   xLastWakeTime = xTaskGetTickCount();
   for (;;) {
+    // delay until the set execution time (does not block the CPU)
     vTaskDelayUntil( &xLastWakeTime, xFrequency);
 
+    // reads in the distance from both ultrasound sensors 
+    // this might need to be seperated if each of these functions block unitl they get the data (they do :( )
     unsigned int distanceL = USensors[1].ping_cm();
     unsigned int distanceR = USensors[0].ping_cm();
   }
