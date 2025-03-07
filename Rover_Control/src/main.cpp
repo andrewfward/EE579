@@ -1,49 +1,73 @@
 #include <Arduino.h>
-#include <NewPing.h>
 
-#define MAX_DISTANCE_SIDE 400  // Maximum distance to measure on side sensors(in cm)
-#define MAX_DISTANCE_FRONT 200  // Max distance to measure on front sensors (less so it doesnt pick up the wall behind)
-#define US_NUMBER 3
+#define SPEED_OF_SOUND 340
 
 // right side ultrasound sensor
-const int TrigPinR = 16;
-const int EchoPinR = 17;
+const int trigPinR = 16;
+const int echoPinR = 17;
 
 //left side ultrasound sensor
-const int TrigPinL = 18;
-const int EchoPinL = 19;
+const int trigPinL = 18;
+const int echoPinL = 19;
 
 // front ultrasound sensor 
-const int TrigPinF = 23;
-const int EchoPinF = 15;
+const int trigPinF = 23;
+const int echoPinF = 15;
 
-NewPing USensors[US_NUMBER] = {   // Sensor object array.
-  NewPing(TrigPinR, EchoPinR, MAX_DISTANCE_SIDE), // Each sensor's trigger pin, echo pin, and max distance to ping.
-  NewPing(TrigPinL, EchoPinL, MAX_DISTANCE_SIDE),
-  NewPing(TrigPinF, EchoPinF, MAX_DISTANCE_FRONT)
-};
+// timeing and state varaibles for ultrasound sensors
+volatile long startTimeR = 0, endTimeR = 0;
+volatile long startTimeL = 0, endTimeL = 0;
+volatile bool receivedR = false, receivedL = false;
+
+// Interrupt service routines for echo signals
+void IRAM_ATTR echoR_start() { startTimeR = micros(); }
+void IRAM_ATTR echoR_end() { endTimeR = micros(); receivedR = true; }
+
+void IRAM_ATTR echoL_start() { startTimeL = micros(); }
+void IRAM_ATTR echoL_end() { endTimeL = micros(); receivedL = true; }
 
 TaskHandle_t ultrasoundTaskHandle = NULL;
 
 void ultrasoundTask(void *pvParameters) {
-  TickType_t xLastWakeTime;
-  // 60 ms (the recomended time in the dataSheet) 
-  const TickType_t xFrequency = 60/ portTICK_PERIOD_MS;
-  xLastWakeTime = xTaskGetTickCount();
   for (;;) {
-    // delay until the set execution time (does not block the CPU)
-    vTaskDelayUntil( &xLastWakeTime, xFrequency);
+    digitalWrite(trigPinR, LOW);
+    digitalWrite(trigPinL, LOW);
+    delayMicroseconds(2);
+    // send trigger pulse for 10 us 
+    digitalWrite(trigPinR, HIGH);  
+    digitalWrite(trigPinL, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(trigPinR, LOW);  
+    digitalWrite(trigPinL, LOW);
 
-    // reads in the distance from both ultrasound sensors 
-    // this might need to be seperated if each of these functions block unitl they get the data (they do :( )
-    unsigned int distanceL = USensors[1].ping_cm();
-    unsigned int distanceR = USensors[0].ping_cm();
+    vTaskDelay(pdMS_TO_TICKS(20)); // wait max time for signals to be recived
+
+    if (receivedR) {
+      float distanceR = ((endTimeR - startTimeR)/1000000) * SPEED_OF_SOUND/2;
+      Serial.print("Left Ultrasonic Sensor: ");
+      Serial.println(distanceR);
+      receivedR = false;
+    }
+
+    if (receivedL) {
+      float distanceL = ((endTimeL - startTimeL)/1000000) * SPEED_OF_SOUND/2;
+      Serial.print("Left Ultrasonic Sensor: ");
+      Serial.println(distanceL);
+      receivedR = false;
+    }
   }
 }
 
 void setup() {
     Serial.begin(115200); // Start Serial Monitor
 
+    pinMode(trigPinR, OUTPUT);
+    pinMode(echoPinR, INPUT);
+    pinMode(trigPinL, OUTPUT);
+    pinMode(echoPinL, INPUT);
+    pinMode(trigPinF, OUTPUT);
+    pinMode(echoPinF, INPUT);
+    
     // Create the side ultrasound sensor task
     xTaskCreate(
       ultrasoundTask,            // Task function
