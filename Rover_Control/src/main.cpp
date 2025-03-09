@@ -67,6 +67,12 @@ void setup() {
     pinMode(echoPinL, INPUT);
     pinMode(trigPinF, OUTPUT);
     pinMode(echoPinF, INPUT);
+
+    // Attach interrupts to handle echo signals
+    attachInterrupt(digitalPinToInterrupt(echoPinR), echoR_start, RISING);
+    attachInterrupt(digitalPinToInterrupt(echoPinR), echoR_end, FALLING);
+    attachInterrupt(digitalPinToInterrupt(echoPinL), echoL_start, RISING);
+    attachInterrupt(digitalPinToInterrupt(echoPinL), echoL_end, FALLING);
     
     // Create the side ultrasound sensor task
     xTaskCreate(
