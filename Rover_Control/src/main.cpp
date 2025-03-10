@@ -19,60 +19,50 @@ volatile long startTimeR = 0, endTimeR = 0;
 volatile long startTimeL = 0, endTimeL = 0;
 volatile bool receivedR = false, receivedL = false;
 
-// Interrupt service routines for echo signals
-void IRAM_ATTR echoR_start() { startTimeR = micros(); }
-void IRAM_ATTR echoR_end() { endTimeR = micros(); receivedR = true; }
 
-void IRAM_ATTR echoL_start() { startTimeL = micros(); }
-void IRAM_ATTR echoL_end() { endTimeL = micros(); receivedL = true; }
+void IRAM_ATTR echoL() { 
+  if (digitalRead(echoPinL)) {
+    startTimeL = micros();  // Echo started
+  } else {
+    endTimeL = micros();  // Echo ended
+    receivedL = true;
+  }
+}
 
 TaskHandle_t ultrasoundTaskHandle = NULL;
 
 void ultrasoundTask(void *pvParameters) {
   for (;;) {
-    digitalWrite(trigPinR, LOW);
     digitalWrite(trigPinL, LOW);
     delayMicroseconds(2);
     // send trigger pulse for 10 us 
-    digitalWrite(trigPinR, HIGH);  
     digitalWrite(trigPinL, HIGH);
     delayMicroseconds(10);
-    digitalWrite(trigPinR, LOW);  
     digitalWrite(trigPinL, LOW);
 
     vTaskDelay(pdMS_TO_TICKS(20)); // wait max time for signals to be recived
 
-    if (receivedR) {
-      float distanceR = ((endTimeR - startTimeR)/1000000) * SPEED_OF_SOUND/2;
-      Serial.print("Left Ultrasonic Sensor: ");
-      Serial.println(distanceR);
-      receivedR = false;
-    }
-
     if (receivedL) {
-      float distanceL = ((endTimeL - startTimeL)/1000000) * SPEED_OF_SOUND/2;
+      float distanceL = (endTimeL - startTimeL)/58;
       Serial.print("Left Ultrasonic Sensor: ");
       Serial.println(distanceL);
-      receivedR = false;
+      receivedL = false;
     }
+
+    vTaskDelay(pdMS_TO_TICKS(20)); // wait max time for signals to be recived
   }
 }
 
 void setup() {
     Serial.begin(115200); // Start Serial Monitor
 
-    pinMode(trigPinR, OUTPUT);
-    pinMode(echoPinR, INPUT);
     pinMode(trigPinL, OUTPUT);
     pinMode(echoPinL, INPUT);
-    pinMode(trigPinF, OUTPUT);
-    pinMode(echoPinF, INPUT);
+
 
     // Attach interrupts to handle echo signals
-    attachInterrupt(digitalPinToInterrupt(echoPinR), echoR_start, RISING);
-    attachInterrupt(digitalPinToInterrupt(echoPinR), echoR_end, FALLING);
-    attachInterrupt(digitalPinToInterrupt(echoPinL), echoL_start, RISING);
-    attachInterrupt(digitalPinToInterrupt(echoPinL), echoL_end, FALLING);
+    attachInterrupt(digitalPinToInterrupt(echoPinL), echoL, CHANGE);
+
     
     // Create the side ultrasound sensor task
     xTaskCreate(
