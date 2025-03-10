@@ -1,6 +1,9 @@
 #include <Arduino.h>
+#include "BluetoothSerial.h"
 
 #define SPEED_OF_SOUND 340
+
+BluetoothSerial SerialBT;  // Bluetooth Serial object
 
 // right side ultrasound sensor
 const int trigPinR = 16;
@@ -29,24 +32,43 @@ void IRAM_ATTR echoL() {
   }
 }
 
+void IRAM_ATTR echoR() { 
+  if (digitalRead(echoPinR)) {
+    startTimeR = micros();  // Echo started
+  } else {
+    endTimeR = micros();  // Echo ended
+    receivedR = true;
+  }
+}
+
 TaskHandle_t ultrasoundTaskHandle = NULL;
 
 void ultrasoundTask(void *pvParameters) {
   for (;;) {
     digitalWrite(trigPinL, LOW);
+    digitalWrite(trigPinR, LOW);
     delayMicroseconds(2);
     // send trigger pulse for 10 us 
     digitalWrite(trigPinL, HIGH);
+    digitalWrite(trigPinR, HIGH);
     delayMicroseconds(10);
     digitalWrite(trigPinL, LOW);
+    digitalWrite(trigPinR, LOW);
 
     vTaskDelay(pdMS_TO_TICKS(20)); // wait max time for signals to be recived
 
     if (receivedL) {
       float distanceL = (endTimeL - startTimeL)/58;
-      Serial.print("Left Ultrasonic Sensor: ");
-      Serial.println(distanceL);
+      SerialBT.print("Left Ultrasonic Sensor: ");
+      SerialBT.println(distanceL);
       receivedL = false;
+    }
+
+    if (receivedR) {
+      float distanceR = (endTimeR - startTimeR)/58;
+      SerialBT.print("Left Ultrasonic Sensor: ");
+      SerialBT.println(distanceR);
+      receivedR = false;
     }
 
     vTaskDelay(pdMS_TO_TICKS(20)); // wait max time for signals to be recived
@@ -59,11 +81,17 @@ void setup() {
     pinMode(trigPinL, OUTPUT);
     pinMode(echoPinL, INPUT);
 
+    pinMode(trigPinR, OUTPUT);
+    pinMode(echoPinR, INPUT);
+
 
     // Attach interrupts to handle echo signals
     attachInterrupt(digitalPinToInterrupt(echoPinL), echoL, CHANGE);
+    attachInterrupt(digitalPinToInterrupt(echoPinR), echoR, CHANGE);
 
-    
+    SerialBT.begin("ESP32_BT_MC"); // Set Bluetooth device name
+    delay(1000);
+
     // Create the side ultrasound sensor task
     xTaskCreate(
       ultrasoundTask,            // Task function
