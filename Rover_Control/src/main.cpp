@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include "BluetoothSerial.h"
 #include <ESP32Servo.h>
+#include "pwm.h"
 
 #define SPEED_OF_SOUND 340
 
@@ -131,6 +132,7 @@ void ultrasoundTask(void *pvParameters) {
 }
 
 void setup() {
+    motorStartupSequence();
     //Serial.begin(115200); // Start Serial Monitor
 
     ESP32PWM::allocateTimer(0);  // Allocate one timer for the steering 
