@@ -1,8 +1,10 @@
 #include <Arduino.h>
 #include "BluetoothSerial.h"
 #include <ESP32Servo.h>
+#include <cmath> // For abs() in C++
 
 #define SPEED_OF_SOUND 340
+#define NUM_LANDMARKS 3
 
 BluetoothSerial SerialBT;  // Bluetooth Serial object
 
@@ -36,6 +38,12 @@ float pos = 0;
 
 float distanceL = 0;
 float distanceR = 0;
+float prevDistanceR = 0;
+int landmarkCounter = -1;
+bool landmarkFlag = false;
+
+// placeholder values at the moment
+const float landmarkDistances[NUM_LANDMARKS] = {2.5, 3.0, 5.0};
 
 // calculated at the start such that dR - dL + offset = 0
 float initialOffset = 0;
@@ -51,6 +59,7 @@ volatile long startTimeL = 0, endTimeL = 0;
 volatile bool receivedR = false, receivedL = false;
 
 TaskHandle_t ultrasoundTaskHandle = NULL;
+TaskHandle_t moveToAreaTaskHandle = NULL;
 
 void calculateInitialOffset();
 
@@ -103,8 +112,16 @@ void ultrasoundTask(void *pvParameters) {
 
     pos = distanceR - distanceL + initialOffset;
 
+    prevDistanceR = distanceR;
+
     SerialBT.print("Lateral Position: ");
     SerialBT.println(pos);
+
+    // add function to detect landmarks (ie dips in the corridor)
+    if (abs(distanceR - prevDistanceR) > 20) {
+      landmarkCounter += 1;
+      landmarkFlag = true;
+    }
 
     // control code to convert that pos to an angle (1100 - 1800)
     // where 1500 is 0
@@ -128,6 +145,42 @@ void ultrasoundTask(void *pvParameters) {
 
     vTaskDelay(pdMS_TO_TICKS(20)); // wait max time for signals to be recived
   }
+}
+
+void moveToAreaTask(void *pvParameters) {
+    float estimatedDistance = 0.0;
+    float targetDistance = 0.0;
+
+    long startTimeDistance = millis();
+    estimatedDistance = 0.0;
+
+    // a maximum drive time in case the landmarks dont work
+    long maxTime = 10000;
+
+    // code to set the speed of the motor 
+    // probabily using ledcwrite
+    // 50 Hz (5-10 % duty cycle with 7.5 % being neutral
+
+    float estimatedSpeed = 1.0;   // guess based on testing (currently random)
+
+    while (estimatedDistance < targetDistance || millis() - startTimeDistance < maxTime) {
+
+      estimatedDistance += estimatedSpeed * 0.1;
+
+      if (landmarkFlag) {
+        estimatedDistance = landmarkDistances[landmarkCounter];
+        landmarkFlag = false;
+      }
+      
+      vTaskDelay(pdMS_TO_TICKS(100)); // Delay AFTER execution
+
+    }
+
+    // stop motors 
+    
+    // pause or delete task, havent decided yet if it wil be reused on the return path
+    vTaskSuspend(moveToAreaTaskHandle);
+  
 }
 
 void setup() {
@@ -162,7 +215,22 @@ void setup() {
       &ultrasoundTaskHandle      // Task handle
     );
 
+    // Create the side ultrasound sensor task
+    xTaskCreate(
+      moveToAreaTask,            // Task function
+      "move to task area",         // Task name
+      2048,                      // Stack size (adjust as needed)
+      NULL,                      // Task parameters
+      1,                         // Task priority (1 is low)
+      &moveToAreaTaskHandle      // Task handle
+    );
+
+    // suspend for the minute until the other sections have been tested
+    vTaskSuspend(moveToAreaTaskHandle);
+
     calculateInitialOffset();
+
+    // code for ESC setup routine
       
 }
 
