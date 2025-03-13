@@ -31,13 +31,13 @@ const int echoPinL = 19;
 const int trigPinF = 23;
 const int echoPinF = 15;
 
-// the difference between dL and dR 
+// the difference between dR and dL 
 float pos = 0;
 
 float distanceL = 0;
 float distanceR = 0;
 
-// calculated at the start such that dL - dR + offset = 0
+// calculated at the start such that dR - dL + offset = 0
 float initialOffset = 0;
 
 // control Parameters 
@@ -52,6 +52,7 @@ volatile bool receivedR = false, receivedL = false;
 
 TaskHandle_t ultrasoundTaskHandle = NULL;
 
+void calculateInitialOffset();
 
 void IRAM_ATTR echoL() { 
   if (digitalRead(echoPinL)) {
@@ -100,7 +101,7 @@ void ultrasoundTask(void *pvParameters) {
       receivedR = false;
     }
 
-    pos = distanceL - distanceR + initialOffset;
+    pos = distanceR - distanceL + initialOffset;
 
     SerialBT.print("Lateral Position: ");
     SerialBT.println(pos);
@@ -160,9 +161,44 @@ void setup() {
       1,                         // Task priority (1 is low)
       &ultrasoundTaskHandle      // Task handle
     );
+
+    calculateInitialOffset();
       
 }
 
 void loop() {
 
+}
+
+void calculateInitialOffset() {
+  digitalWrite(trigPinL, LOW);
+  digitalWrite(trigPinR, LOW);
+  delayMicroseconds(2);
+  // send trigger pulse for 10 us 
+  digitalWrite(trigPinL, HIGH);
+  digitalWrite(trigPinR, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPinL, LOW);
+  digitalWrite(trigPinR, LOW);
+
+  delay(20);
+
+  if (receivedL) {
+    distanceL = (endTimeL - startTimeL)/58;
+    //SerialBT.print("Left Ultrasonic Sensor: ");
+    //SerialBT.println(distanceL);
+    receivedL = false;
+  }
+
+  if (receivedR) {
+    distanceR = (endTimeR - startTimeR)/58;
+    //SerialBT.print("Left Ultrasonic Sensor: ");
+    //SerialBT.println(distanceR);
+    receivedR = false;
+  }
+
+  initialOffset = distanceL - distanceR;
+
+  SerialBT.print("Initial Offset (cm): ");
+  SerialBT.println(initialOffset);
 }
