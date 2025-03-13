@@ -185,7 +185,6 @@ void moveToAreaTask(void *pvParameters) {
 }
 
 void setup() {
-    motorStartupSequence();
     //Serial.begin(115200); // Start Serial Monitor
 
     ESP32PWM::allocateTimer(0);  // Allocate one timer for the steering 
@@ -233,7 +232,7 @@ void setup() {
     calculateInitialOffset();
 
     // code for ESC setup routine
-      
+    motorStartupSequence();    
 }
 
 void loop() {
