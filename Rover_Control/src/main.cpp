@@ -85,6 +85,7 @@ void IRAM_ATTR echoR() {
 
 void ultrasoundTask(void *pvParameters) {
   for (;;) {
+    
     digitalWrite(trigPinL, LOW);
     digitalWrite(trigPinR, LOW);
     delayMicroseconds(2);
@@ -142,7 +143,10 @@ void ultrasoundTask(void *pvParameters) {
       steeringAngle = minUs;
     }
 
-    servoSteering.writeMicroseconds(steeringAngle);
+    
+
+    //servoSteering.writeMicroseconds(steeringAngle);
+    servoSteering.writeMicroseconds(1600);
 
     vTaskDelay(pdMS_TO_TICKS(20)); // wait max time for signals to be recived
   }
@@ -228,11 +232,11 @@ void setup() {
 
     // suspend for the minute until the other sections have been tested
     vTaskSuspend(moveToAreaTaskHandle);
-    vTaskSuspend(ultrasoundTaskHandle);
+    
     // calculateInitialOffset();
 
     // code for ESC setup routine
-    motorStartupSequence();    
+    //motorStartupSequence();    
 }
 
 void loop() {
