@@ -187,8 +187,8 @@ void moveToAreaTask(void *pvParameters) {
 void setup() {
     //Serial.begin(115200); // Start Serial Monitor
 
-    ESP32PWM::allocateTimer(0);  // Allocate one timer for the steering 
-    ESP32PWM::allocateTimer(1);  // Allocate one timer for the ultraounic sensor servo 
+    ESP32PWM::allocateTimer(2);  // Allocate one timer for the steering 
+    ESP32PWM::allocateTimer(3);  // Allocate one timer for the ultraounic sensor servo 
 
     servoSteering.setPeriodHertz(300);    // set frequency of PWM signal to 300 Hz
     servoSteering.attach(steeringServoPin, minUs, maxUs);
@@ -228,8 +228,8 @@ void setup() {
 
     // suspend for the minute until the other sections have been tested
     vTaskSuspend(moveToAreaTaskHandle);
-
-    calculateInitialOffset();
+    vTaskSuspend(ultrasoundTaskHandle);
+    // calculateInitialOffset();
 
     // code for ESC setup routine
     motorStartupSequence();    
