@@ -19,19 +19,19 @@ int maxUs = 1800;
 int neutralPos = 1500;
 
 // servo pins 
-const int steeringServoPin = 32;
+const int steeringServoPin = 18;
 const int ultrasoundServoPin = 33;
 
 // right side ultrasound sensor
-const int trigPinR = 16;
-const int echoPinR = 17;
+const int trigPinR = 23;
+const int echoPinR = 22;
 
 //left side ultrasound sensor
-const int trigPinL = 18;
+const int trigPinL = 21;
 const int echoPinL = 19;
 
 // front ultrasound sensor 
-const int trigPinF = 23;
+const int trigPinF = 16;
 const int echoPinF = 15;
 
 // the difference between dR and dL 
@@ -145,8 +145,8 @@ void ultrasoundTask(void *pvParameters) {
 
     
 
-    //servoSteering.writeMicroseconds(steeringAngle);
-    servoSteering.writeMicroseconds(1600);
+    servoSteering.writeMicroseconds(steeringAngle);
+    
 
     vTaskDelay(pdMS_TO_TICKS(20)); // wait max time for signals to be recived
   }
@@ -166,7 +166,7 @@ void moveToAreaTask(void *pvParameters) {
     // probabily using ledcwrite
     // 50 Hz (5-10 % duty cycle with 7.5 % being neutral
 
-    float estimatedSpeed = 1.0;   // guess based on testing (currently random)
+    float estimatedSpeed = 0.1;   // guess based on testing (currently random)
 
     while (estimatedDistance < targetDistance || millis() - startTimeDistance < maxTime) {
 
@@ -233,7 +233,7 @@ void setup() {
     // suspend for the minute until the other sections have been tested
     vTaskSuspend(moveToAreaTaskHandle);
     
-    // calculateInitialOffset();
+    calculateInitialOffset();
 
     // code for ESC setup routine
     //motorStartupSequence();    
