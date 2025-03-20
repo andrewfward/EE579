@@ -49,7 +49,8 @@ const float landmarkDistances[NUM_LANDMARKS] = {2.5, 3.0, 5.0};
 // calculated at the start such that dR - dL + offset = 0
 float initialOffset = 0;
 
-// control Parameters 
+// control param 
+
 int Kp = 1;
 
 int steeringAngle = 1500;
