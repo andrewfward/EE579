@@ -1,7 +1,7 @@
 #include <Arduino.h>
 #include "BluetoothSerial.h"
 #include <ESP32Servo.h>
-#include "pwm.h"
+#include "esc_pwm.h"
 #include <cmath> // For abs() in C++
 
 #define SPEED_OF_SOUND 340
@@ -27,12 +27,12 @@ const int trigPinR = 16;
 const int echoPinR = 17;
 
 //left side ultrasound sensor
-const int trigPinL = 18;
-const int echoPinL = 19;
+const int trigPinL = 26;
+const int echoPinL = 27;
 
 // front ultrasound sensor 
 const int trigPinF = 23;
-const int echoPinF = 15;
+const int echoPinF = 22;
 
 // the difference between dR and dL 
 float pos = 0;
