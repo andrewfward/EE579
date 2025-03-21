@@ -16,25 +16,25 @@ Servo servoUltrasound;
 // min max values for the steering servo in us
 int minUs = 1100;
 int maxUs = 1800;
-int neutralPos = 1500;
+float neutralPos = 1500.0;
 
 // servo pins 
 const int steeringServoPin = 18;
 const int ultrasoundServoPin = 33;
 
 // right side ultrasound sensor
-const int trigPinR = 23;
-const int echoPinR = 22;
+const int trigPinR = 21;
+const int echoPinR = 19;
 
 //left side ultrasound sensor
-const int trigPinL = 21;
-const int echoPinL = 19;
+const int trigPinL = 23;
+const int echoPinL = 22;
 
 // front ultrasound sensor 
 const int trigPinF = 16;
 const int echoPinF = 15;
 
-// the difference between dR and dL 
+// the difference between dL and dR 
 float pos = 0;
 
 float distanceL = 0;
@@ -46,12 +46,12 @@ bool landmarkFlag = false;
 // placeholder values at the moment
 const float landmarkDistances[NUM_LANDMARKS] = {2.5, 3.0, 5.0};
 
-// calculated at the start such that dR - dL + offset = 0
+// calculated at the start such that dL - dR + offset = 0
 float initialOffset = 0;
 
 // control param 
 
-int Kp = 1;
+float Kp = 1;
 
 int steeringAngle = 1500;
 
@@ -101,19 +101,19 @@ void ultrasoundTask(void *pvParameters) {
 
     if (receivedL) {
       distanceL = (endTimeL - startTimeL)/58;
-      //SerialBT.print("Left Ultrasonic Sensor: ");
-      //SerialBT.println(distanceL);
+      SerialBT.print("Left Ultrasonic Sensor: ");
+      SerialBT.println(distanceL);
       receivedL = false;
     }
 
     if (receivedR) {
       distanceR = (endTimeR - startTimeR)/58;
-      //SerialBT.print("Left Ultrasonic Sensor: ");
-      //SerialBT.println(distanceR);
+      SerialBT.print("Right Ultrasonic Sensor: ");
+      SerialBT.println(distanceR);
       receivedR = false;
     }
 
-    pos = distanceR - distanceL + initialOffset;
+    pos = distanceL - distanceR - initialOffset;
 
     prevDistanceR = distanceR;
 
@@ -134,6 +134,7 @@ void ultrasoundTask(void *pvParameters) {
 
     SerialBT.print("Steering Angle (us): ");
     SerialBT.println(steeringAngle);
+    SerialBT.println("");
 
     // saturation constarints
     if (steeringAngle > maxUs) {
@@ -144,10 +145,7 @@ void ultrasoundTask(void *pvParameters) {
       steeringAngle = minUs;
     }
 
-    
-
     servoSteering.writeMicroseconds(steeringAngle);
-    
 
     vTaskDelay(pdMS_TO_TICKS(20)); // wait max time for signals to be recived
   }
@@ -209,6 +207,9 @@ void setup() {
     attachInterrupt(digitalPinToInterrupt(echoPinR), echoR, CHANGE);
 
     SerialBT.begin("ESP32_BT_MC"); // Set Bluetooth device name
+    delay(5000);
+
+    calculateInitialOffset();
     delay(1000);
 
     // Create the side ultrasound sensor task
@@ -233,8 +234,9 @@ void setup() {
 
     // suspend for the minute until the other sections have been tested
     vTaskSuspend(moveToAreaTaskHandle);
+    delay(1000);
     
-    calculateInitialOffset();
+    
 
     // code for ESC setup routine
     //motorStartupSequence();    
