@@ -1,12 +1,11 @@
 #include <Arduino.h>
 #include "pwm.h"
 
+
 int motorStartupSequence() {
   unsigned long startMillis;
 
   // PWM settings
-  static int PWM_PIN = 17;
-  static int PWM_CHANNEL = 0;
   static int PWM_FREQ = 50;
   static int PWM_RESOLUTION = 8;
 
