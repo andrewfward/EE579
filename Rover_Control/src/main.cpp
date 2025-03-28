@@ -34,7 +34,7 @@ void ultrasoundTask(void *pvParameters) {
   int prevDistanceL = 0;
 
   // control param 
-  float Kp = 1.0;
+  float Kp = 1;
   float Ki = 0.0;
   float error = 0.0;
   float eIntegral = 0.0;
@@ -74,6 +74,13 @@ void ultrasoundTask(void *pvParameters) {
     }
     
     newPos = distanceR - distanceL - initialOffset;
+    
+    if (abs(newPos - prevPos) > 25) {
+      initialOffset += (newPos - prevPos);
+      newPos = prevPos;
+      SerialBT.println("dip detected");
+    }
+      
 
     // only update pos when a chnage greater than 1 occurs
     // this is to reduce the effct of noise
@@ -93,7 +100,7 @@ void ultrasoundTask(void *pvParameters) {
     // add function to detect landmarks (ie dips in the corridor)
     if (abs(distanceR - prevDistanceR) > 20) {
       landmarkCounter += 1;
-      landmarkFlag = true;
+      //landmarkFlag = true;
     }
 
     // control code to convert that pos to an angle (1100 - 1800)
@@ -127,21 +134,23 @@ void moveToAreaTask(void *pvParameters) {
     float estimatedDistance = 0.0;
     float targetDistance = 0.0;
 
-    long startTimeDistance = millis();
+    
     estimatedDistance = 0.0;
 
     // a maximum drive time in case the landmarks dont work
-    long maxTime = 4000;
+    long maxTime = 8000;
 
     // code to set the speed of the motor 
     // probabily using ledcwrite
     // 50 Hz (5-10 % duty cycle with 7.5 % being neutral
-    set_direction(BACKWARDS);
+    
     SerialBT.println("started");
 
-    float estimatedSpeed = 0.1;   // guess based on testing (currently random)
+    float estimatedSpeed = 0.01;   // guess based on testing (currently random)
+    long startTimeDistance = millis();
+    set_direction(FORWARDS);
 
-    while (estimatedDistance < targetDistance || millis() - startTimeDistance < maxTime) {
+    while (millis() - startTimeDistance < maxTime) {
 
       estimatedDistance += estimatedSpeed * 0.1;
 

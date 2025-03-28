@@ -34,7 +34,7 @@ int set_direction(bool direction) {
     // set forwards for set length
     setDirectionMillis= millis();
     while(millis() - setDirectionMillis < RETURN_TO_NEUTRAL_LENGTH) {
-      ledcWrite(ESC_PWM_CHANNEL, setDutyCycle(73));
+      ledcWrite(ESC_PWM_CHANNEL, setDutyCycle(70));
     }
     // set neutral for set length
     setDirectionMillis= millis();
@@ -42,7 +42,7 @@ int set_direction(bool direction) {
       ledcWrite(ESC_PWM_CHANNEL, setDutyCycle(75));
     }
     // set forwards
-    ledcWrite(ESC_PWM_CHANNEL, setDutyCycle(73));
+    ledcWrite(ESC_PWM_CHANNEL, setDutyCycle(70));
   }
 
   else if (direction == BACKWARDS & DIRECTION_FLAG == FORWARDS) {
@@ -52,15 +52,15 @@ int set_direction(bool direction) {
       ledcWrite(ESC_PWM_CHANNEL, setDutyCycle(75));
     }
     // set forwards
-    ledcWrite(ESC_PWM_CHANNEL, setDutyCycle(78));
+    ledcWrite(ESC_PWM_CHANNEL, setDutyCycle(80));
   }
 
   else if (direction == BACKWARDS & DIRECTION_FLAG == BACKWARDS) {
-    ledcWrite(ESC_PWM_CHANNEL, setDutyCycle(78));
+    ledcWrite(ESC_PWM_CHANNEL, setDutyCycle(80));
   }
   
   else if (direction == FORWARDS & DIRECTION_FLAG == FORWARDS){
-    ledcWrite(ESC_PWM_CHANNEL, setDutyCycle(73));
+    ledcWrite(ESC_PWM_CHANNEL, setDutyCycle(70));
   }
 
   DIRECTION_FLAG = direction;
