@@ -17,10 +17,6 @@ const int ultrasoundServoPin = 33;
 const int trigPinR = 21;
 const int echoPinR = 19;
 
-// ESC configuration
-const int PWM_PIN = 17;
-const int PWM_CHANNEL = 0;
-
 // Left side ultrasonic sensor pins
 const int trigPinL = 23;
 const int echoPinL = 22;

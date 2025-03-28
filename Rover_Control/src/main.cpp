@@ -131,11 +131,13 @@ void moveToAreaTask(void *pvParameters) {
     estimatedDistance = 0.0;
 
     // a maximum drive time in case the landmarks dont work
-    long maxTime = 10000;
+    long maxTime = 4000;
 
     // code to set the speed of the motor 
     // probabily using ledcwrite
     // 50 Hz (5-10 % duty cycle with 7.5 % being neutral
+    set_direction(BACKWARDS);
+    SerialBT.println("started");
 
     float estimatedSpeed = 0.1;   // guess based on testing (currently random)
 
@@ -153,6 +155,8 @@ void moveToAreaTask(void *pvParameters) {
     }
 
     // stop motors 
+    stop_motors();
+    SerialBT.println("stopped");
     
     // pause or delete task, havent decided yet if it wil be reused on the return path
     vTaskSuspend(moveToAreaTaskHandle);
@@ -184,6 +188,10 @@ void setup() {
     calculateInitialOffset();
     delay(1000);
 
+    // code for ESC setup routine
+    motorStartupSequence();   
+    delay(1000);
+
     // Create the side ultrasound sensor task
     xTaskCreate(
       ultrasoundTask,            // Task function
@@ -205,13 +213,9 @@ void setup() {
     );
 
     // suspend for the minute until the other sections have been tested
-    vTaskSuspend(moveToAreaTaskHandle);
+    //vTaskSuspend(moveToAreaTaskHandle);
     delay(1000);
-    
-    
-
-    // code for ESC setup routine
-    //motorStartupSequence();    
+   
 }
 
 void loop() {

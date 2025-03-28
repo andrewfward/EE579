@@ -1,6 +1,7 @@
 #include "esc_pwm.h"
 
 float setDutyCycle(float dutyCycle) {
+  float result;
   result = dutyCycle * 255 / 100;
   return result;
 }
@@ -37,11 +38,16 @@ int set_direction(bool direction) {
   }
   
   if (direction==FORWARDS) {
-    ledcwrite(ESC_PWM_CHANNEL, setDutyCycle(73));
+    ledcWrite(ESC_PWM_CHANNEL, setDutyCycle(73));
   }
   else{
-    ledcwrite(ESC_PWM_CHANNEL, setDutyCycle(77));
+    ledcWrite(ESC_PWM_CHANNEL, setDutyCycle(80));
   }
 
+  return 0;
+}
+
+int stop_motors() {
+  ledcWrite(ESC_PWM_CHANNEL, setDutyCycle(75));
   return 0;
 }
