@@ -1,66 +1,8 @@
-#include <Arduino.h>
-#include "BluetoothSerial.h"
-#include <ESP32Servo.h>
+
 #include "esc_pwm.h"
+#include "config.h"
 #include <cmath> // For abs() in C++
 
-#define SPEED_OF_SOUND 340
-#define NUM_LANDMARKS 3
-
-BluetoothSerial SerialBT;  // Bluetooth Serial object
-
-// servo objects 
-Servo servoSteering;
-Servo servoUltrasound;
-
-// min max values for the steering servo in us
-int minUs = 1100;
-int maxUs = 1800;
-int neutralPos = 1500;
-
-// servo pins 
-const int steeringServoPin = 32;
-const int ultrasoundServoPin = 33;
-
-// right side ultrasound sensor
-const int trigPinR = 16;
-const int echoPinR = 17;
-
-//left side ultrasound sensor
-const int trigPinL = 26;
-const int echoPinL = 27;
-
-// front ultrasound sensor 
-const int trigPinF = 23;
-const int echoPinF = 22;
-
-// the difference between dR and dL 
-float pos = 0;
-
-float distanceL = 0;
-float distanceR = 0;
-float prevDistanceR = 0;
-int landmarkCounter = -1;
-bool landmarkFlag = false;
-
-// placeholder values at the moment
-const float landmarkDistances[NUM_LANDMARKS] = {2.5, 3.0, 5.0};
-
-// calculated at the start such that dR - dL + offset = 0
-float initialOffset = 0;
-
-// control Parameters 
-int Kp = 1;
-
-int steeringAngle = 1500;
-
-// timeing and state varaibles for ultrasound sensors
-volatile long startTimeR = 0, endTimeR = 0;
-volatile long startTimeL = 0, endTimeL = 0;
-volatile bool receivedR = false, receivedL = false;
-
-TaskHandle_t ultrasoundTaskHandle = NULL;
-TaskHandle_t moveToAreaTaskHandle = NULL;
 
 void calculateInitialOffset();
 
@@ -84,7 +26,21 @@ void IRAM_ATTR echoR() {
 
 
 void ultrasoundTask(void *pvParameters) {
+  float prevPos = 0;
+  float newPos = 0;
+  int distanceL = 0;
+  int distanceR = 0;
+  int prevDistanceR = 0;
+  int prevDistanceL = 0;
+
+  // control param 
+  float Kp = 1.0;
+  float Ki = 0.0;
+  float error = 0.0;
+  float eIntegral = 0.0;
+  float timeStep = 40.0/1.0e3;
   for (;;) {
+    
     digitalWrite(trigPinL, LOW);
     digitalWrite(trigPinR, LOW);
     delayMicroseconds(2);
@@ -99,21 +55,37 @@ void ultrasoundTask(void *pvParameters) {
 
     if (receivedL) {
       distanceL = (endTimeL - startTimeL)/58;
-      //SerialBT.print("Left Ultrasonic Sensor: ");
-      //SerialBT.println(distanceL);
+      if (distanceL > 400) {
+        distanceL = 400;
+      }
+      SerialBT.print("Left Ultrasonic Sensor: ");
+      SerialBT.println(distanceL);
       receivedL = false;
     }
 
     if (receivedR) {
       distanceR = (endTimeR - startTimeR)/58;
-      //SerialBT.print("Left Ultrasonic Sensor: ");
-      //SerialBT.println(distanceR);
+      if (distanceR > 400) {
+        distanceR = 400;
+      }
+      SerialBT.print("Right Ultrasonic Sensor: ");
+      SerialBT.println(distanceR);
       receivedR = false;
     }
+    
+    newPos = distanceR - distanceL - initialOffset;
 
-    pos = distanceR - distanceL + initialOffset;
+    // only update pos when a chnage greater than 1 occurs
+    // this is to reduce the effct of noise
+    // prePos is only updated after the chnage is greater than 1
+    // so a slow chnage in pos will still have an effect after multiple iterations
+    if (fabs(newPos - prevPos) > 1) {
+      pos = (float)newPos;
+      prevPos = newPos;
+    }
 
     prevDistanceR = distanceR;
+    prevDistanceL = distanceL;
 
     SerialBT.print("Lateral Position: ");
     SerialBT.println(pos);
@@ -126,12 +98,15 @@ void ultrasoundTask(void *pvParameters) {
 
     // control code to convert that pos to an angle (1100 - 1800)
     // where 1500 is 0
-    // starts with an simple proportional controller
+    // PI controller
 
-    steeringAngle = (int)(neutralPos + Kp * pos);
+    error = 0.0 - pos;
+    eIntegral = eIntegral + error*timeStep;
+    steeringAngle = (int)(neutralPos + (Kp * error) + (Ki * eIntegral));
 
     SerialBT.print("Steering Angle (us): ");
     SerialBT.println(steeringAngle);
+    SerialBT.println("");
 
     // saturation constarints
     if (steeringAngle > maxUs) {
@@ -162,7 +137,7 @@ void moveToAreaTask(void *pvParameters) {
     // probabily using ledcwrite
     // 50 Hz (5-10 % duty cycle with 7.5 % being neutral
 
-    float estimatedSpeed = 1.0;   // guess based on testing (currently random)
+    float estimatedSpeed = 0.1;   // guess based on testing (currently random)
 
     while (estimatedDistance < targetDistance || millis() - startTimeDistance < maxTime) {
 
@@ -204,6 +179,9 @@ void setup() {
     attachInterrupt(digitalPinToInterrupt(echoPinR), echoR, CHANGE);
 
     SerialBT.begin("ESP32_BT_MC"); // Set Bluetooth device name
+    delay(5000);
+
+    calculateInitialOffset();
     delay(1000);
 
     // Create the side ultrasound sensor task
@@ -228,11 +206,12 @@ void setup() {
 
     // suspend for the minute until the other sections have been tested
     vTaskSuspend(moveToAreaTaskHandle);
-    vTaskSuspend(ultrasoundTaskHandle);
-    // calculateInitialOffset();
+    delay(1000);
+    
+    
 
     // code for ESC setup routine
-    motorStartupSequence();    
+    //motorStartupSequence();    
 }
 
 void loop() {
@@ -240,6 +219,8 @@ void loop() {
 }
 
 void calculateInitialOffset() {
+  int distanceL = 0;
+  int distanceR = 0;
   digitalWrite(trigPinL, LOW);
   digitalWrite(trigPinR, LOW);
   delayMicroseconds(2);
@@ -266,7 +247,7 @@ void calculateInitialOffset() {
     receivedR = false;
   }
 
-  initialOffset = distanceL - distanceR;
+  initialOffset = distanceR - distanceL;
 
   SerialBT.print("Initial Offset (cm): ");
   SerialBT.println(initialOffset);
