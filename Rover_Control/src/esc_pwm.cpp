@@ -19,7 +19,6 @@ int motorStartupSequence() {
   // Run startup sequence for a period defined in the header file
   startMillis = millis();
   while (millis() - startMillis < STARTUP_SEQUENCE_LENGTH) {
-  // while(1){
     ledcWrite(ESC_PWM_CHANNEL, setDutyCycle(75));
     delay(20);
   }
@@ -30,20 +29,41 @@ int motorStartupSequence() {
 // Changing direction function
 // Example implementation: set_direction(FORWARDS);
 int set_direction(bool direction) {
-  unsigned long returnToNeutralMillis;
-  // return to neutral for one second
-  returnToNeutralMillis = millis();
-  while(millis() - returnToNeutralMillis < RETURN_TO_NEUTRAL_LENGTH) {
-    ledcWrite(ESC_PWM_CHANNEL, setDutyCycle(75));
-  }
-  
-  if (direction==FORWARDS) {
+  unsigned long setDirectionMillis;
+  if (direction == FORWARDS & DIRECTION_FLAG == BACKWARDS) {
+    // set forwards for set length
+    setDirectionMillis= millis();
+    while(millis() - setDirectionMillis < RETURN_TO_NEUTRAL_LENGTH) {
+      ledcWrite(ESC_PWM_CHANNEL, setDutyCycle(73));
+    }
+    // set neutral for set length
+    setDirectionMillis= millis();
+    while(millis() - setDirectionMillis < RETURN_TO_NEUTRAL_LENGTH) {
+      ledcWrite(ESC_PWM_CHANNEL, setDutyCycle(75));
+    }
+    // set forwards
     ledcWrite(ESC_PWM_CHANNEL, setDutyCycle(73));
   }
-  else{
-    ledcWrite(ESC_PWM_CHANNEL, setDutyCycle(80));
+
+  else if (direction == BACKWARDS & DIRECTION_FLAG == FORWARDS) {
+    // set neutral for set length
+    setDirectionMillis= millis();
+    while(millis() - setDirectionMillis < RETURN_TO_NEUTRAL_LENGTH) {
+      ledcWrite(ESC_PWM_CHANNEL, setDutyCycle(75));
+    }
+    // set forwards
+    ledcWrite(ESC_PWM_CHANNEL, setDutyCycle(78));
   }
 
+  else if (direction == BACKWARDS & DIRECTION_FLAG == BACKWARDS) {
+    ledcWrite(ESC_PWM_CHANNEL, setDutyCycle(78));
+  }
+  
+  else if (direction == FORWARDS & DIRECTION_FLAG == FORWARDS){
+    ledcWrite(ESC_PWM_CHANNEL, setDutyCycle(73));
+  }
+
+  DIRECTION_FLAG = direction;
   return 0;
 }
 
