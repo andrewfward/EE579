@@ -73,23 +73,26 @@ void ultrasoundTask(void *pvParameters) {
       receivedR = false;
     }
     
-    newPos = distanceR - distanceL - initialOffset;
-    
-    if (abs(newPos - prevPos) > 25) {
-      initialOffset += (newPos - prevPos);
-      newPos = prevPos;
-      SerialBT.println("dip detected");
-    }
-      
+    posR = distanceR - initialOffsetR;
+    posL = distanceL - initialOffsetL;
 
+    if (posL < 2 && posR > 2 || posL > 2 && posR < 2) {
+      pos = posL;
+    } else {
+      pos = 0;
+    }
+
+  
     // only update pos when a chnage greater than 1 occurs
     // this is to reduce the effct of noise
     // prePos is only updated after the chnage is greater than 1
     // so a slow chnage in pos will still have an effect after multiple iterations
+    /*
     if (fabs(newPos - prevPos) > 1) {
       pos = (float)newPos;
       prevPos = newPos;
     }
+      */
 
     prevDistanceR = distanceR;
     prevDistanceL = distanceL;
@@ -247,21 +250,22 @@ void calculateInitialOffset() {
   delay(20);
 
   if (receivedL) {
-    distanceL = (endTimeL - startTimeL)/58;
+    initialOffsetL = (endTimeL - startTimeL)/58;
     //SerialBT.print("Left Ultrasonic Sensor: ");
     //SerialBT.println(distanceL);
     receivedL = false;
   }
 
   if (receivedR) {
-    distanceR = (endTimeR - startTimeR)/58;
+    initialOffsetR = (endTimeR - startTimeR)/58;
     //SerialBT.print("Left Ultrasonic Sensor: ");
     //SerialBT.println(distanceR);
     receivedR = false;
   }
 
-  initialOffset = distanceR - distanceL;
+  SerialBT.print("Initial Offset R (cm): ");
+  SerialBT.println(initialOffsetR);
 
-  SerialBT.print("Initial Offset (cm): ");
-  SerialBT.println(initialOffset);
+  SerialBT.print("Initial Offset L (cm): ");
+  SerialBT.println(initialOffsetL);
 }

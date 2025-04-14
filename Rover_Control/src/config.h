@@ -43,6 +43,8 @@ extern const int echoPinF;
 
 // Position and control variables
 extern float pos;
+extern float posR;
+extern float posL;
 extern int landmarkCounter;
 extern bool landmarkFlag;
 
@@ -50,7 +52,8 @@ extern bool landmarkFlag;
 extern const float landmarkDistances[NUM_LANDMARKS];
 
 // Initial offset for distance calculation
-extern int initialOffset;
+extern int initialOffsetL;
+extern int initialOffsetR;
 
 // Steering angle for the servo
 extern int steeringAngle;

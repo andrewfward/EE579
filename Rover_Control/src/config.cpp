@@ -27,6 +27,8 @@ const int echoPinF = 15;
 
 // Position and control variables
 float pos = 0;
+float posR = 0;
+float posL = 0;
 int landmarkCounter = -1;
 bool landmarkFlag = false;
 
@@ -34,7 +36,8 @@ bool landmarkFlag = false;
 const float landmarkDistances[NUM_LANDMARKS] = {2.5, 3.0, 5.0};
 
 // Initial offset for distance calculation
-int initialOffset = 0;
+int initialOffsetR = 0;
+int initialOffsetL = 0;
 
 // Steering angle for servo
 int steeringAngle = 1500;
