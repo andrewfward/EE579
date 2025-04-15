@@ -35,10 +35,10 @@ void ultrasoundTask(void *pvParameters) {
 
   // control param 
   float Kp = 1;
-  float Ki = 0.0;
+  float Ki = 0.1;
   float error = 0.0;
   float eIntegral = 0.0;
-  float timeStep = 40.0/1.0e3;
+  float timeStep = 60.0/1.0e3;
   for (;;) {
     
     digitalWrite(trigPinL, LOW);
@@ -51,7 +51,7 @@ void ultrasoundTask(void *pvParameters) {
     digitalWrite(trigPinL, LOW);
     digitalWrite(trigPinR, LOW);
 
-    vTaskDelay(pdMS_TO_TICKS(20)); // wait max time for signals to be recived
+    vTaskDelay(pdMS_TO_TICKS(30)); // wait max time for signals to be recived
 
     if (receivedL) {
       distanceL = (endTimeL - startTimeL)/58;
@@ -76,7 +76,7 @@ void ultrasoundTask(void *pvParameters) {
     posR = distanceR - initialOffsetR;
     posL = distanceL - initialOffsetL;
 
-    if (posL < 2 && posR > 2 || posL > 2 && posR < 2) {
+    if (posL < 1.0 && posR > 1.0 || posL > 1.0 && posR < 1.0) {
       pos = posL;
     } else {
       pos = 0;
@@ -99,13 +99,6 @@ void ultrasoundTask(void *pvParameters) {
 
     SerialBT.print("Lateral Position: ");
     SerialBT.println(pos);
-
-    // add function to detect landmarks (ie dips in the corridor)
-    if (abs(distanceR - prevDistanceR) > 20) {
-      landmarkCounter += 1;
-      //landmarkFlag = true;
-    }
-
     // control code to convert that pos to an angle (1100 - 1800)
     // where 1500 is 0
     // PI controller
@@ -141,7 +134,7 @@ void moveToAreaTask(void *pvParameters) {
     estimatedDistance = 0.0;
 
     // a maximum drive time in case the landmarks dont work
-    long maxTime = 8000;
+    long maxTime = 10000;
 
     // code to set the speed of the motor 
     // probabily using ledcwrite
@@ -156,14 +149,8 @@ void moveToAreaTask(void *pvParameters) {
     while (millis() - startTimeDistance < maxTime) {
 
       estimatedDistance += estimatedSpeed * 0.1;
-
-      if (landmarkFlag) {
-        estimatedDistance = landmarkDistances[landmarkCounter];
-        landmarkFlag = false;
-      }
       
-      vTaskDelay(pdMS_TO_TICKS(100)); // Delay AFTER execution
-
+      vTaskDelay(pdMS_TO_TICKS(10)); // Delay AFTER execution
     }
 
     // stop motors 
@@ -172,14 +159,14 @@ void moveToAreaTask(void *pvParameters) {
     
     // pause or delete task, havent decided yet if it wil be reused on the return path
     vTaskSuspend(moveToAreaTaskHandle);
-  
 }
 
 void setup() {
+
     //Serial.begin(115200); // Start Serial Monitor
 
     ESP32PWM::allocateTimer(2);  // Allocate one timer for the steering 
-    ESP32PWM::allocateTimer(3);  // Allocate one timer for the ultraounic sensor servo 
+    ESP32PWM::allocateTimer(3);  // Allocate one timer for the ultrasonic sensor servo 
 
     servoSteering.setPeriodHertz(300);    // set frequency of PWM signal to 300 Hz
     servoSteering.attach(steeringServoPin, minUs, maxUs);
@@ -193,39 +180,40 @@ void setup() {
     // Attach interrupts to handle echo signals
     attachInterrupt(digitalPinToInterrupt(echoPinL), echoL, CHANGE);
     attachInterrupt(digitalPinToInterrupt(echoPinR), echoR, CHANGE);
+    delay(1000);
 
-    SerialBT.begin("ESP32_BT_MC"); // Set Bluetooth device name
+    //SerialBT.begin("ESP32_BT"); // Set Bluetooth device name
     delay(5000);
 
     calculateInitialOffset();
     delay(1000);
 
-    // code for ESC setup routine
+    // ESC startup routine
     motorStartupSequence();   
     delay(1000);
 
-    // Create the side ultrasound sensor task
-    xTaskCreate(
+    // Create the side ultrasound sensor task on core 1
+    xTaskCreatePinnedToCore(
       ultrasoundTask,            // Task function
       "Side Ultrasound",         // Task name
-      2048,                      // Stack size (adjust as needed)
+      4000,                      // Stack size (adjust as needed)
       NULL,                      // Task parameters
-      1,                         // Task priority (1 is low)
-      &ultrasoundTaskHandle      // Task handle
+      1,                         // Task priority
+      &ultrasoundTaskHandle,     // Task handle
+      1                          // Core to pin the task to (0 or 1)
     );
 
-    // Create the side ultrasound sensor task
-    xTaskCreate(
+    // Create the moveToArea task on core 1
+    xTaskCreatePinnedToCore(
       moveToAreaTask,            // Task function
-      "move to task area",         // Task name
-      2048,                      // Stack size (adjust as needed)
+      "Move to Area",            // Task name
+      4000,                      // Stack size (adjust as needed)
       NULL,                      // Task parameters
-      1,                         // Task priority (1 is low)
-      &moveToAreaTaskHandle      // Task handle
+      1,                         // Task priority
+      &moveToAreaTaskHandle,     // Task handle
+      1                          // Core to pin the task to (same as above)
     );
 
-    // suspend for the minute until the other sections have been tested
-    //vTaskSuspend(moveToAreaTaskHandle);
     delay(1000);
    
 }
@@ -247,7 +235,7 @@ void calculateInitialOffset() {
   digitalWrite(trigPinL, LOW);
   digitalWrite(trigPinR, LOW);
 
-  delay(20);
+  delay(30);
 
   if (receivedL) {
     initialOffsetL = (endTimeL - startTimeL)/58;

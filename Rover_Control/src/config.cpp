@@ -1,8 +1,8 @@
 #include "config.h"
 
 // Constants
-int minUs = 1100;
-int maxUs = 1800;
+int minUs = 1200;
+int maxUs = 1700;
 float neutralPos = 1500.0;
 
 // Servo objects
