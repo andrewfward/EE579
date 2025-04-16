@@ -79,9 +79,20 @@ void ultrasoundTask(void *pvParameters) {
     if (posL < 1.0 && posR > 1.0 || posL > 1.0 && posR < 1.0) {
       pos = posL;
     } else {
-      pos = 0;
+      /*
+      if (abs(distanceL - prevDistanceL) > 5 || abs(distanceR - prevDistanceR) > 5) {
+        if (abs(distanceL - prevDistanceL) > 5) {
+          initialOffsetL = distanceL;
+        }
+        if (abs(distanceR - prevDistanceR) > 5) {
+          initialOffsetR = distanceR;
+        }
+        posL = distanceL - initialOffsetL;
+        pos = posL;
+      }
+        */
+      pos = posL * 0.1;
     }
-
   
     // only update pos when a chnage greater than 1 occurs
     // this is to reduce the effct of noise
