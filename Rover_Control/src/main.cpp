@@ -58,8 +58,8 @@ void ultrasoundTask(void *pvParameters) {
       if (distanceL > 400) {
         distanceL = 400;
       }
-      SerialBT.print("Left Ultrasonic Sensor: ");
-      SerialBT.println(distanceL);
+      //SerialBT.print("Left Ultrasonic Sensor: ");
+      //SerialBT.println(distanceL);
       receivedL = false;
     }
 
@@ -68,18 +68,29 @@ void ultrasoundTask(void *pvParameters) {
       if (distanceR > 400) {
         distanceR = 400;
       }
-      SerialBT.print("Right Ultrasonic Sensor: ");
-      SerialBT.println(distanceR);
+      //SerialBT.print("Right Ultrasonic Sensor: ");
+      //erialBT.println(distanceR);
       receivedR = false;
     }
     
     posR = distanceR - initialOffsetR;
     posL = distanceL - initialOffsetL;
-
+      // car move to the left or right 
     if (posL < 1.0 && posR > 1.0 || posL > 1.0 && posR < 1.0) {
       pos = posL;
+    }
+    // wall chnaged on the left but not the right
+    else if (abs(posL) < 1.0 && (posR > -1.0 && posR < 1.0)) {
+      pos = -posR;
+    }
+    // wall chnaged on the right but not the left
+    else if (abs(posR) < 1.0 && (posL > -1.0 && posL < 1.0)) {
+      pos = posL;
     } else {
-      /*
+      pos = 0;
+    }
+
+          /*
       if (abs(distanceL - prevDistanceL) > 5 || abs(distanceR - prevDistanceR) > 5) {
         if (abs(distanceL - prevDistanceL) > 5) {
           initialOffsetL = distanceL;
@@ -91,8 +102,6 @@ void ultrasoundTask(void *pvParameters) {
         pos = posL;
       }
         */
-      pos = posL * 0.1;
-    }
   
     // only update pos when a chnage greater than 1 occurs
     // this is to reduce the effct of noise
@@ -108,8 +117,8 @@ void ultrasoundTask(void *pvParameters) {
     prevDistanceR = distanceR;
     prevDistanceL = distanceL;
 
-    SerialBT.print("Lateral Position: ");
-    SerialBT.println(pos);
+    //SerialBT.print("Lateral Position: ");
+    //SerialBT.println(pos);
     // control code to convert that pos to an angle (1100 - 1800)
     // where 1500 is 0
     // PI controller
@@ -118,9 +127,9 @@ void ultrasoundTask(void *pvParameters) {
     eIntegral = eIntegral + error*timeStep;
     steeringAngle = (int)(neutralPos + (Kp * error) + (Ki * eIntegral));
 
-    SerialBT.print("Steering Angle (us): ");
-    SerialBT.println(steeringAngle);
-    SerialBT.println("");
+    //SerialBT.print("Steering Angle (us): ");
+    //SerialBT.println(steeringAngle);
+    //SerialBT.println("");
 
     // saturation constarints
     if (steeringAngle > maxUs) {
@@ -151,7 +160,7 @@ void moveToAreaTask(void *pvParameters) {
     // probabily using ledcwrite
     // 50 Hz (5-10 % duty cycle with 7.5 % being neutral
     
-    SerialBT.println("started");
+    //SerialBT.println("started");
 
     float estimatedSpeed = 0.01;   // guess based on testing (currently random)
     long startTimeDistance = millis();
@@ -166,7 +175,7 @@ void moveToAreaTask(void *pvParameters) {
 
     // stop motors 
     stop_motors();
-    SerialBT.println("stopped");
+    //SerialBT.println("stopped");
     
     // pause or delete task, havent decided yet if it wil be reused on the return path
     vTaskSuspend(moveToAreaTaskHandle);
@@ -262,9 +271,9 @@ void calculateInitialOffset() {
     receivedR = false;
   }
 
-  SerialBT.print("Initial Offset R (cm): ");
-  SerialBT.println(initialOffsetR);
+  //SerialBT.print("Initial Offset R (cm): ");
+  //SerialBT.println(initialOffsetR);
 
-  SerialBT.print("Initial Offset L (cm): ");
-  SerialBT.println(initialOffsetL);
+  //SerialBT.print("Initial Offset L (cm): ");
+  //SerialBT.println(initialOffsetL);
 }
