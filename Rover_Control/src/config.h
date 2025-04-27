@@ -27,7 +27,7 @@ extern int logIndex;
 extern bool logDataReady;
 
 // Movement Flags
-extern bool moveEnabled;
+extern bool RUN;
 extern bool moving;
 
 // Servo Objects

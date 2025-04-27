@@ -110,13 +110,14 @@ void moveToAreaTask(void *pvParameters) {
   
   set_direction(FORWARDS);
 
-  while (moveEnabled && (millis() - startTimeDistance < maxTime)) {
+  while (RUN && (millis() - startTimeDistance < maxTime)) {
     vTaskDelay(pdMS_TO_TICKS(10));
   }
 
   stop_motors();
   moving = false;
   logDataReady = true;
+  RUN = false;
   vTaskSuspend(moveToAreaTaskHandle);
 }
 
@@ -129,14 +130,16 @@ void bluetoothTask(void *pvParameters) {
       command.trim();
 
       if (command == "start") {
-        moveEnabled = true;
+        RUN = true;
+        // makes sure the task doesnt start again while it is aleady moving
         if (!moving) {
           logIndex = 0;
+          vTaskResume(ultrasoundTaskHandle);
           vTaskResume(moveToAreaTaskHandle);
           moving = true;
         }
       } else if (command == "stop") {
-        moveEnabled = false;
+        RUN = false;
         stop_motors();
         moving = false;
         logDataReady = true;
@@ -144,6 +147,10 @@ void bluetoothTask(void *pvParameters) {
     }
 
     if (logDataReady) {
+
+      while (eTaskGetState(ultrasoundTaskHandle) != eSuspended || eTaskGetState(moveToAreaTaskHandle) != eSuspended) {
+        vTaskDelay(pdMS_TO_TICKS(100)); // Small delay to allow other tasks to finish before logging 
+      }
       // Output header
       SerialBT.println("DistanceLeft,DistanceRight,SteeringAngle");
       for (int i = 0; i < logIndex; i++) {
@@ -196,6 +203,7 @@ void setup() {
     &ultrasoundTaskHandle,
     1
   );
+  vTaskSuspend(ultrasoundTaskHandle);
 
   // Create move task
   xTaskCreatePinnedToCore(
@@ -207,7 +215,6 @@ void setup() {
     &moveToAreaTaskHandle,
     1
   );
-
   vTaskSuspend(moveToAreaTaskHandle);
 
   // Create Bluetooth task

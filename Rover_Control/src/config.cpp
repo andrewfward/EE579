@@ -6,7 +6,7 @@ int logIndex = 0;
 bool logDataReady = false;
 
 // -------------------- Movement Flags --------------------
-bool moveEnabled = false;
+bool RUN = false;
 bool moving = false;
 
 // -------------------- Servo Objects --------------------
