@@ -1,55 +1,66 @@
 #include "config.h"
 
-// Constants
+// -------------------- Logging --------------------
+LogEntry logData[MAX_LOG_ENTRIES];
+int logIndex = 0;
+bool logDataReady = false;
+
+// -------------------- Movement Flags --------------------
+bool moveEnabled = false;
+bool moving = false;
+
+// -------------------- Servo Objects --------------------
+Servo servoSteering;
+Servo servoUltrasound;
+
+// -------------------- Bluetooth --------------------
+BluetoothSerial SerialBT;
+
+// -------------------- Servo Parameters --------------------
 int minUs = 1200;
 int maxUs = 1700;
 float neutralPos = 1500.0;
 
-// Servo objects
-Servo servoSteering;
-Servo servoUltrasound;
-
-// Servo pin assignments
+// -------------------- Servo Pins --------------------
 const int steeringServoPin = 18;
 const int ultrasoundServoPin = 33;
 
-// Right side ultrasonic sensor pins
+// -------------------- Ultrasound Sensor Pins --------------------
 const int trigPinR = 21;
 const int echoPinR = 19;
 
-// Left side ultrasonic sensor pins
 const int trigPinL = 23;
 const int echoPinL = 22;
 
-// Front ultrasonic sensor pins
 const int trigPinF = 16;
 const int echoPinF = 15;
 
-// Position and control variables
+// -------------------- Position and Control Variables --------------------
 float pos = 0;
 float posR = 0;
 float posL = 0;
 int landmarkCounter = -1;
 bool landmarkFlag = false;
 
-// Landmark distances
+// -------------------- Landmark Distances --------------------
 const float landmarkDistances[NUM_LANDMARKS] = {2.5, 3.0, 5.0};
 
-// Initial offset for distance calculation
+// -------------------- Initial Offsets --------------------
 int initialOffsetR = 0;
 int initialOffsetL = 0;
 
-// Steering angle for servo
+// -------------------- Steering --------------------
 int steeringAngle = 1500;
 
-// Timing and state variables for ultrasound sensors
-volatile long startTimeR = 0, endTimeR = 0;
-volatile long startTimeL = 0, endTimeL = 0;
-volatile bool receivedR = false, receivedL = false;
+// -------------------- Ultrasound Timing --------------------
+volatile long startTimeR = 0;
+volatile long endTimeR = 0;
+volatile long startTimeL = 0;
+volatile long endTimeL = 0;
+volatile bool receivedR = false;
+volatile bool receivedL = false;
 
-// Task handles
+// -------------------- FreeRTOS Task Handles --------------------
 TaskHandle_t ultrasoundTaskHandle = NULL;
 TaskHandle_t moveToAreaTaskHandle = NULL;
-
-// Bluetooth Serial object (defined globally for use in other files)
-BluetoothSerial SerialBT;
+TaskHandle_t bluetoothTaskHandle = NULL;
