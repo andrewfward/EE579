@@ -34,7 +34,7 @@ void ultrasoundTask(void *pvParameters) {
   int prevDistanceL = 0;
 
   float Kp = 1;
-  float Ki = 0.1;
+  float Ki = 0;
   float error = 0.0;
   float eIntegral = 0.0;
   float timeStep = 60.0/1.0e3;
@@ -102,7 +102,7 @@ void ultrasoundTask(void *pvParameters) {
 void moveToAreaTask(void *pvParameters) {
   float estimatedDistance = 0.0;
   float targetDistance = 0.0;
-  long maxTime = 10000; // 10 seconds max
+  long maxTime = 20000; // 10 seconds max
   float estimatedSpeed = 0.01;
   long startTimeDistance = millis();
   

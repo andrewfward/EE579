@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import messagebox, filedialog
+from tkinter import filedialog
 import serial
 import threading
 import csv
@@ -33,9 +33,6 @@ class RoverControlApp:
         self.save_button = tk.Button(self.control_frame, text="Save Log", command=self.save_log, state='disabled')
         self.save_button.grid(row=0, column=2, padx=5)
 
-        self.ping_button = tk.Button(self.control_frame, text="Ping", command=self.send_ping, state='disabled')
-        self.ping_button.grid(row=0, column=3, padx=5)
-
         self.log_frame = tk.Frame(root)
         self.log_frame.pack()
 
@@ -49,26 +46,22 @@ class RoverControlApp:
             self.start_button.config(state='normal')
             self.stop_button.config(state='normal')
             self.save_button.config(state='normal')
-            self.ping_button.config(state='normal')
             self.running = True
             threading.Thread(target=self.read_serial, daemon=True).start()
 
             # Send ping after connection
             self.send_ping()
 
-            messagebox.showinfo("Connection", f"Connected to {port}")
         except Exception as e:
-            messagebox.showerror("Error", str(e))
+            print(f"Error: {e}")
 
     def send_start(self):
         if self.serial_port and self.serial_port.is_open:
             self.serial_port.write(b'start\n')
-            messagebox.showinfo("Start Command", "Start command sent!")
 
     def send_stop(self):
         if self.serial_port and self.serial_port.is_open:
             self.serial_port.write(b'stop\n')
-            messagebox.showinfo("Stop Command", "Stop command sent!")
 
     def send_ping(self):
         if self.serial_port and self.serial_port.is_open:
@@ -81,6 +74,16 @@ class RoverControlApp:
                 if line:
                     if line == "Pong":
                         self.text_log.insert(tk.END, "Connection verified: Pong received from ESP32\n")
+                    elif line == "Start Command Received":
+                        self.text_log.insert(tk.END, "Start command confirmed.\n")
+                        # Change button colors without pop-up
+                        self.start_button.config(bg="green", fg="white")  # Change Start button color
+                        self.stop_button.config(bg="red", fg="white")    # Change Stop button color
+                    elif line == "Stop Command Received":
+                        self.text_log.insert(tk.END, "Stop command confirmed.\n")
+                        # Change button colors without pop-up
+                        self.stop_button.config(bg="green", fg="white")  # Change Stop button color
+                        self.start_button.config(bg="red", fg="white")   # Change Start button color
                     else:
                         self.data_log.append(line.split(','))
                         self.text_log.insert(tk.END, line + '\n')
@@ -96,7 +99,6 @@ class RoverControlApp:
                     writer = csv.writer(f)
                     writer.writerow(["DistanceLeft", "DistanceRight", "SteeringAngle"])
                     writer.writerows(self.data_log)
-                messagebox.showinfo("Saved", "Log saved successfully.")
 
     def on_closing(self):
         self.running = False
