@@ -33,6 +33,9 @@ class RoverControlApp:
         self.save_button = tk.Button(self.control_frame, text="Save Log", command=self.save_log, state='disabled')
         self.save_button.grid(row=0, column=2, padx=5)
 
+        self.ping_button = tk.Button(self.control_frame, text="Ping", command=self.send_ping, state='disabled')
+        self.ping_button.grid(row=0, column=3, padx=5)
+
         self.log_frame = tk.Frame(root)
         self.log_frame.pack()
 
@@ -46,8 +49,13 @@ class RoverControlApp:
             self.start_button.config(state='normal')
             self.stop_button.config(state='normal')
             self.save_button.config(state='normal')
+            self.ping_button.config(state='normal')
             self.running = True
             threading.Thread(target=self.read_serial, daemon=True).start()
+
+            # Send ping after connection
+            self.send_ping()
+
             messagebox.showinfo("Connection", f"Connected to {port}")
         except Exception as e:
             messagebox.showerror("Error", str(e))
@@ -62,13 +70,20 @@ class RoverControlApp:
             self.serial_port.write(b'stop\n')
             messagebox.showinfo("Stop Command", "Stop command sent!")
 
+    def send_ping(self):
+        if self.serial_port and self.serial_port.is_open:
+            self.serial_port.write(b'ping\n')
+
     def read_serial(self):
         while self.running:
             if self.serial_port.in_waiting:
                 line = self.serial_port.readline().decode('utf-8').strip()
                 if line:
-                    self.data_log.append(line.split(','))
-                    self.text_log.insert(tk.END, line + '\n')
+                    if line == "Pong":
+                        self.text_log.insert(tk.END, "Connection verified: Pong received from ESP32\n")
+                    else:
+                        self.data_log.append(line.split(','))
+                        self.text_log.insert(tk.END, line + '\n')
                     self.text_log.see(tk.END)
             time.sleep(0.05)
 

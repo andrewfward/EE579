@@ -30,6 +30,14 @@ void ultrasoundTask(void *pvParameters) {
   float newPos = 0;
   int distanceL = 0;
   int distanceR = 0;
+  int prevDistanceR = 0;
+  int prevDistanceL = 0;
+
+  float Kp = 1;
+  float Ki = 0.1;
+  float error = 0.0;
+  float eIntegral = 0.0;
+  float timeStep = 60.0/1.0e3;
 
   for (;;) {
     digitalWrite(trigPinL, LOW);
@@ -59,22 +67,46 @@ void ultrasoundTask(void *pvParameters) {
     posR = distanceR - initialOffsetR;
     posL = distanceL - initialOffsetL;
 
-    // Send the updated data over Bluetooth serial
+    if (posL < 1.0 && posR > 1.0 || posL > 1.0 && posR < 1.0) {
+      pos = posL;
+    }
+    else if (abs(posL) < 1.0 && (posR > -1.0 && posR < 1.0)) {
+      pos = -posR;
+    }
+    else if (abs(posR) < 1.0 && (posL > -1.0 && posL < 1.0)) {
+      pos = posL;
+    } 
+    else {
+      pos = 0;
+    }
+
+    error = 0.0 - pos;
+    eIntegral += error * timeStep;
+    steeringAngle = (int)(neutralPos + (Kp * error) + (Ki * eIntegral));
+
+    if (steeringAngle > maxUs) steeringAngle = maxUs;
+    if (steeringAngle < minUs) steeringAngle = minUs;
+
+    servoSteering.writeMicroseconds(steeringAngle);
+
     String logEntry = String(distanceL) + "," + String(distanceR) + "," + String(steeringAngle);
     SerialBT.println(logEntry);
-
-    vTaskDelay(pdMS_TO_TICKS(20));
 
     if (!RUN) {
       vTaskSuspend(NULL);
     }
+    vTaskDelay(pdMS_TO_TICKS(20));
   }
 }
 
 void moveToAreaTask(void *pvParameters) {
-  set_direction(FORWARDS);
+  float estimatedDistance = 0.0;
+  float targetDistance = 0.0;
   long maxTime = 10000; // 10 seconds max
+  float estimatedSpeed = 0.01;
   long startTimeDistance = millis();
+  
+  set_direction(FORWARDS);
 
   while (RUN && (millis() - startTimeDistance < maxTime)) {
     vTaskDelay(pdMS_TO_TICKS(10));
@@ -82,12 +114,12 @@ void moveToAreaTask(void *pvParameters) {
 
   stop_motors();
   moving = false;
-  logDataReady = true;
   RUN = false;
   vTaskSuspend(moveToAreaTaskHandle);
 }
 
-// Bluetooth communication task
+
+// bluetooth coms task runs every 100 ms
 void bluetoothTask(void *pvParameters) {
   for (;;) {
     if (SerialBT.available()) {
@@ -95,19 +127,22 @@ void bluetoothTask(void *pvParameters) {
       command.trim();
 
       if (command == "start") {
-        RUN = true;
-        moving = true;
-        logDataReady = false;
-        vTaskResume(ultrasoundTaskHandle);
-        vTaskResume(moveToAreaTaskHandle);
         SerialBT.println("Start Command Received");
-      } 
-      else if (command == "stop") {
+        RUN = true;
+        // makes sure the task doesnt start again while it is aleady moving
+        if (!moving) {
+          logIndex = 0;
+          vTaskResume(ultrasoundTaskHandle);
+          vTaskResume(moveToAreaTaskHandle);
+          moving = true;
+        }
+      } else if (command == "stop") {
+        SerialBT.println("Stop Command Received");
         RUN = false;
         stop_motors();
         moving = false;
-        logDataReady = true;
-        SerialBT.println("Stop Command Received");
+      } else if (command == "ping") {
+        SerialBT.println("Pong");
       }
     }
 
@@ -116,7 +151,10 @@ void bluetoothTask(void *pvParameters) {
 }
 
 void setup() {
+  //Serial.begin(115200); // Optional for Serial Monitor
+
   SerialBT.begin("ESP32_Rover");
+
   ESP32PWM::allocateTimer(2);
   ESP32PWM::allocateTimer(3);
 
@@ -125,24 +163,56 @@ void setup() {
 
   pinMode(trigPinL, OUTPUT);
   pinMode(echoPinL, INPUT);
+
   pinMode(trigPinR, OUTPUT);
   pinMode(echoPinR, INPUT);
 
   attachInterrupt(digitalPinToInterrupt(echoPinL), echoL, CHANGE);
   attachInterrupt(digitalPinToInterrupt(echoPinR), echoR, CHANGE);
+  delay(1000);
 
   calculateInitialOffset();
   delay(1000);
-  
+
   motorStartupSequence();
   delay(1000);
 
-  // Create tasks
-  xTaskCreatePinnedToCore(ultrasoundTask, "Side Ultrasound", 4000, NULL, 1, &ultrasoundTaskHandle, 1);
+  // Create ultrasound task
+  xTaskCreatePinnedToCore(
+    ultrasoundTask,
+    "Side Ultrasound",
+    4000,
+    NULL,
+    1,
+    &ultrasoundTaskHandle,
+    1
+  );
   vTaskSuspend(ultrasoundTaskHandle);
-  xTaskCreatePinnedToCore(moveToAreaTask, "Move to Area", 4000, NULL, 1, &moveToAreaTaskHandle, 1);
+
+  // Create move task
+  xTaskCreatePinnedToCore(
+    moveToAreaTask,
+    "Move to Area",
+    4000,
+    NULL,
+    1,
+    &moveToAreaTaskHandle,
+    1
+  );
   vTaskSuspend(moveToAreaTaskHandle);
-  xTaskCreatePinnedToCore(bluetoothTask, "Bluetooth Comms", 4000, NULL, 1, NULL, 1);
+
+  // Create Bluetooth task
+  xTaskCreatePinnedToCore(
+    bluetoothTask,
+    "Bluetooth Comms",
+    4000,
+    NULL,
+    1,
+    NULL,
+    1
+  );
+
+  delay(1000);
 }
 
 void loop() {
