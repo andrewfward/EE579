@@ -17,20 +17,25 @@ Servo servoUltrasound;
 BluetoothSerial SerialBT;
 
 // -------------------- Servo Parameters --------------------
+/*
 int minUs = 1200;
 int maxUs = 1700;
-float neutralPos = 1500.0;
+*/
+
+int minUs = 1380;
+int maxUs = 1600;
+float neutralPos = 1470.0;
 
 // -------------------- Servo Pins --------------------
 const int steeringServoPin = 18;
 const int ultrasoundServoPin = 33;
 
 // -------------------- Ultrasound Sensor Pins --------------------
-const int trigPinR = 21;
-const int echoPinR = 19;
+const int trigPinR = 23;
+const int echoPinR = 22;
 
-const int trigPinL = 23;
-const int echoPinL = 22;
+const int trigPinL = 21;
+const int echoPinL = 19;
 
 const int trigPinF = 16;
 const int echoPinF = 15;

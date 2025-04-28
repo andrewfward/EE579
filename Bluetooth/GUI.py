@@ -85,8 +85,16 @@ class RoverControlApp:
                         self.stop_button.config(bg="green", fg="white")  # Change Stop button color
                         self.start_button.config(bg="red", fg="white")   # Change Start button color
                     else:
-                        self.data_log.append(line.split(','))
-                        self.text_log.insert(tk.END, line + '\n')
+                        # Assuming data comes in the format: DistanceLeft,DistanceRight,SteeringAngle,Pos
+                        data_parts = line.split(',')
+                        if len(data_parts) == 4:  # Make sure there are 4 parts
+                            distance_left = data_parts[0]
+                            distance_right = data_parts[1]
+                            steering_angle = data_parts[2]
+                            pos = data_parts[3]
+                            # Append the data to the log with the new "pos" column
+                            self.data_log.append([distance_left, distance_right, steering_angle, pos])
+                            self.text_log.insert(tk.END, f"{line}\n")
                     self.text_log.see(tk.END)
             time.sleep(0.05)
 
@@ -97,7 +105,8 @@ class RoverControlApp:
             if filepath:
                 with open(filepath, 'w', newline='') as f:
                     writer = csv.writer(f)
-                    writer.writerow(["DistanceLeft", "DistanceRight", "SteeringAngle"])
+                    # Add the new header with the "Pos" column
+                    writer.writerow(["DistanceLeft", "DistanceRight", "SteeringAngle", "Pos"])
                     writer.writerows(self.data_log)
 
     def on_closing(self):

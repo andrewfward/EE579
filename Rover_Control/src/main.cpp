@@ -33,7 +33,7 @@ void ultrasoundTask(void *pvParameters) {
   int prevDistanceR = 0;
   int prevDistanceL = 0;
 
-  float Kp = 1;
+  float Kp = 0.1;
   float Ki = 0;
   float error = 0.0;
   float eIntegral = 0.0;
@@ -54,31 +54,42 @@ void ultrasoundTask(void *pvParameters) {
 
     if (receivedL) {
       distanceL = (endTimeL - startTimeL) / 58;
-      if (distanceL > 400) distanceL = 400;
+      if (distanceL > 450) {
+        distanceL = 450;
+      }
       receivedL = false;
     }
 
     if (receivedR) {
       distanceR = (endTimeR - startTimeR) / 58;
-      if (distanceR > 400) distanceR = 400;
+      if (distanceR > 450) {distanceR = 450;
+      }
       receivedR = false;
     }
 
     posR = distanceR - initialOffsetR;
     posL = distanceL - initialOffsetL;
 
+    pos = posR - posL;
+
+    
+/*
     if (posL < 1.0 && posR > 1.0 || posL > 1.0 && posR < 1.0) {
-      pos = posL;
+      pos = posR;
     }
     else if (abs(posL) < 1.0 && (posR > -1.0 && posR < 1.0)) {
-      pos = -posR;
+      pos = posR;
     }
     else if (abs(posR) < 1.0 && (posL > -1.0 && posL < 1.0)) {
-      pos = posL;
+      pos = -posL;
     } 
     else {
       pos = 0;
     }
+
+    */
+
+  
 
     error = 0.0 - pos;
     eIntegral += error * timeStep;
@@ -89,7 +100,7 @@ void ultrasoundTask(void *pvParameters) {
 
     servoSteering.writeMicroseconds(steeringAngle);
 
-    String logEntry = String(distanceL) + "," + String(distanceR) + "," + String(steeringAngle);
+    String logEntry = String(distanceL) + "," + String(distanceR) + "," + String(steeringAngle) + "," + String(pos);
     SerialBT.println(logEntry);
 
     if (!RUN) {

@@ -2,13 +2,14 @@ import csv
 import matplotlib.pyplot as plt
 
 # === CONFIG ===
-FILENAME = "Bluetooth/example_log.csv"  # <- CHANGE this to your actual CSV filename
+FILENAME = "Bluetooth/test9.csv"  # <- CHANGE this to your actual CSV filename
 TOLERANCE = 0.1  # 10% tolerance for movement classification
 
 # === Load CSV Data ===
 distance_left = []
 distance_right = []
 steering_angle = []
+pos = []  # To hold the 'Pos' data
 
 with open(FILENAME, 'r') as file:
     reader = csv.DictReader(file)
@@ -16,6 +17,7 @@ with open(FILENAME, 'r') as file:
         distance_left.append(float(row['DistanceLeft']))
         distance_right.append(float(row['DistanceRight']))
         steering_angle.append(float(row['SteeringAngle']))
+        pos.append(float(row['Pos']))  # Read the 'Pos' value
 
 # === Calculate Differences ===
 diffs = []
@@ -39,7 +41,7 @@ for i in range(1, len(distance_left)):
 # === Plotting ===
 time = list(range(len(distance_left)))
 
-fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 8), sharex=True)
+fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(12, 12), sharex=True)
 
 # Plot distances
 ax1.plot(time, distance_left, label='Distance Left (cm)', color='blue')
@@ -67,6 +69,14 @@ for i, move_type in enumerate(movement_classification):
 handles, labels = ax2.get_legend_handles_labels()
 by_label = dict(zip(labels, handles))
 ax2.legend(by_label.values(), by_label.keys())
+
+# Plot Pos value
+ax3.plot(time, pos, label='Position (Pos)', color='purple')
+ax3.set_xlabel('Time Step')
+ax3.set_ylabel('Position')
+ax3.set_title('Position Over Time')
+ax3.legend()
+ax3.grid(True)
 
 plt.tight_layout()
 plt.show()
