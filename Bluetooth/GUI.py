@@ -55,10 +55,12 @@ class RoverControlApp:
     def send_start(self):
         if self.serial_port and self.serial_port.is_open:
             self.serial_port.write(b'start\n')
+            messagebox.showinfo("Start Command", "Start command sent!")
 
     def send_stop(self):
         if self.serial_port and self.serial_port.is_open:
             self.serial_port.write(b'stop\n')
+            messagebox.showinfo("Stop Command", "Stop command sent!")
 
     def read_serial(self):
         while self.running:
