@@ -38,9 +38,13 @@ extern Servo servoUltrasound;
 extern BluetoothSerial SerialBT;
 
 // Servo Parameters
-extern int minUs;
-extern int maxUs;
+extern int minUsSteer;
+extern int maxUsSteer;
 extern float neutralPos;
+
+// ultraound servo parameters 
+extern int minUsUltra;
+extern int maxUsUltra;
 
 // Servo Pins
 extern const int steeringServoPin;
@@ -76,12 +80,16 @@ extern volatile long startTimeR;
 extern volatile long endTimeR;
 extern volatile long startTimeL;
 extern volatile long endTimeL;
+extern volatile long startTimeF;
+extern volatile long endTimeF;
 extern volatile bool receivedR;
 extern volatile bool receivedL;
+extern volatile bool receivedF;
 
 // FreeRTOS Tasks
 extern TaskHandle_t ultrasoundTaskHandle;
 extern TaskHandle_t moveToAreaTaskHandle;
 extern TaskHandle_t bluetoothTaskHandle;
+extern TaskHandle_t locateCanTaskHandle;
 
 #endif  // CONFIG_H

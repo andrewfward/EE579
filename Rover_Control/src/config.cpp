@@ -22,9 +22,12 @@ int minUs = 1200;
 int maxUs = 1700;
 */
 
-int minUs = 1370;
-int maxUs = 1600;
+int minUsSteer = 1370;
+int maxUsSteer = 1600;
 float neutralPos = 1470.0;
+
+int minUsUltra = 1200;
+int maxUsUltra = 1700;
 
 // -------------------- Servo Pins --------------------
 const int steeringServoPin = 18;
@@ -55,17 +58,21 @@ int initialOffsetR = 0;
 int initialOffsetL = 0;
 
 // -------------------- Steering --------------------
-int steeringAngle = 1500;
+int steeringAngle = 1470;
 
 // -------------------- Ultrasound Timing --------------------
 volatile long startTimeR = 0;
 volatile long endTimeR = 0;
 volatile long startTimeL = 0;
 volatile long endTimeL = 0;
+volatile long startTimeF = 0;
+volatile long endTimeF = 0;
 volatile bool receivedR = false;
 volatile bool receivedL = false;
+volatile bool receivedF = false;
 
 // -------------------- FreeRTOS Task Handles --------------------
 TaskHandle_t ultrasoundTaskHandle = NULL;
 TaskHandle_t moveToAreaTaskHandle = NULL;
 TaskHandle_t bluetoothTaskHandle = NULL;
+TaskHandle_t locateCanTaskHandle = NULL;

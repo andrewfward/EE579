@@ -24,6 +24,15 @@ void IRAM_ATTR echoR() {
   }
 }
 
+void IRAM_ATTR echoF() { 
+  if (digitalRead(echoPinF)) {
+    startTimeF = micros();
+  } else {
+    endTimeF = micros();
+    receivedF = true;
+  }
+}
+
 // Tasks
 void ultrasoundTask(void *pvParameters) {
   float prevPos = 0;
@@ -72,31 +81,12 @@ void ultrasoundTask(void *pvParameters) {
 
     pos = posR - posL;
 
-    
-/*
-    if (posL < 1.0 && posR > 1.0 || posL > 1.0 && posR < 1.0) {
-      pos = posR;
-    }
-    else if (abs(posL) < 1.0 && (posR > -1.0 && posR < 1.0)) {
-      pos = posR;
-    }
-    else if (abs(posR) < 1.0 && (posL > -1.0 && posL < 1.0)) {
-      pos = -posL;
-    } 
-    else {
-      pos = 0;
-    }
-
-    */
-
-  
-
     error = 0.0 - pos;
     eIntegral += error * timeStep;
     steeringAngle = (int)(neutralPos + (Kp * error) + (Ki * eIntegral));
 
-    if (steeringAngle > maxUs) steeringAngle = maxUs;
-    if (steeringAngle < minUs) steeringAngle = minUs;
+    if (steeringAngle > maxUsSteer) steeringAngle = maxUsSteer;
+    if (steeringAngle < minUsSteer) steeringAngle = minUsSteer;
 
     servoSteering.writeMicroseconds(steeringAngle);
 
@@ -125,8 +115,12 @@ void moveToAreaTask(void *pvParameters) {
 
   stop_motors();
   moving = false;
-  RUN = false;
-  vTaskSuspend(moveToAreaTaskHandle);
+  // start finding can routine
+  if (RUN) {
+    vTaskResume(locateCanTask);
+  }
+  //suspend self
+  vTaskSuspend(NULL);
 }
 
 
@@ -136,13 +130,11 @@ void bluetoothTask(void *pvParameters) {
     if (SerialBT.available()) {
       String command = SerialBT.readStringUntil('\n');
       command.trim();
-
       if (command == "start") {
         SerialBT.println("Start Command Received");
         RUN = true;
         // makes sure the task doesnt start again while it is aleady moving
         if (!moving) {
-          logIndex = 0;
           vTaskResume(ultrasoundTaskHandle);
           vTaskResume(moveToAreaTaskHandle);
           moving = true;
@@ -161,6 +153,46 @@ void bluetoothTask(void *pvParameters) {
   }
 }
 
+
+// loacte Can task
+void locateCanTask(void *pvParameters) {
+  const int step = 1;           // find resolution of servo
+  const int delayBetweenSteps = 150; // ms
+  int distanceF = 0;
+  for (;;) {
+    for (int angle = minUsUltra; angle <= maxUsUltra; angle += step) {
+      servoUltrasound.writeMicroseconds(angle);
+      vTaskDelay(pdMS_TO_TICKS(300));
+
+      digitalWrite(trigPinF, LOW);
+      delayMicroseconds(2);
+  
+      digitalWrite(trigPinF, HIGH);
+      delayMicroseconds(10);
+      digitalWrite(trigPinF, LOW);
+  
+      vTaskDelay(pdMS_TO_TICKS(55));
+
+      if (receivedF) {
+        distanceF = (endTimeL - startTimeL) / 58;
+        if (distanceF > 450) {
+          distanceF = 450;
+        }
+        receivedF = false;
+      }
+
+      SerialBT.println(distanceF);
+
+      if (!RUN) {
+        vTaskSuspend(NULL);
+      }
+    }
+
+    // suspend self
+    vTaskSuspend(NULL);
+  }
+}
+
 void setup() {
   //Serial.begin(115200); // Optional for Serial Monitor
 
@@ -170,7 +202,10 @@ void setup() {
   ESP32PWM::allocateTimer(3);
 
   servoSteering.setPeriodHertz(300);
-  servoSteering.attach(steeringServoPin, minUs, maxUs);
+  servoSteering.attach(steeringServoPin, minUsSteer, maxUsSteer);
+
+  servoUltrasound.setPeriodHertz(300);   // change to match actual values
+  servoUltrasound.attach(ultrasoundServoPin, minUsUltra, maxUsUltra);
 
   pinMode(trigPinL, OUTPUT);
   pinMode(echoPinL, INPUT);
@@ -178,8 +213,12 @@ void setup() {
   pinMode(trigPinR, OUTPUT);
   pinMode(echoPinR, INPUT);
 
+  pinMode(trigPinF, OUTPUT);
+  pinMode(echoPinF, INPUT);
+
   attachInterrupt(digitalPinToInterrupt(echoPinL), echoL, CHANGE);
   attachInterrupt(digitalPinToInterrupt(echoPinR), echoR, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(echoPinF), echoF, CHANGE);
   delay(1000);
 
   calculateInitialOffset();
@@ -222,6 +261,18 @@ void setup() {
     NULL,
     1
   );
+
+  // Create task to locate can 
+  xTaskCreatePinnedToCore(
+    locateCanTask,
+    "locateCan",
+    4000,
+    NULL,
+    1,
+    NULL,
+    1
+  );
+  vTaskSuspend(locateCanTask);
 
   delay(1000);
 }
