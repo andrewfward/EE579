@@ -2,7 +2,7 @@ import csv
 import matplotlib.pyplot as plt
 
 # === CONFIG ===
-FILENAME = "Bluetooth/test1_2.csv"  # <- CHANGE this to your actual CSV filename
+FILENAME = "Bluetooth/FrontUltrasoundTests/actualtests/test1.csv"  # <- CHANGE this to your actual CSV filename
 TOLERANCE = 0.1  # 10% tolerance for movement classification
 
 # === Load CSV Data ===

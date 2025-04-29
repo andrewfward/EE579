@@ -93,7 +93,7 @@ void ultrasoundTask(void *pvParameters) {
     String logEntry = String(distanceL) + "," + String(distanceR) + "," + String(steeringAngle) + "," + String(pos);
     SerialBT.println(logEntry);
 
-    if (!RUN) {
+    if (RUN == false || moving == false) {
       vTaskSuspend(NULL);
     }
     vTaskDelay(pdMS_TO_TICKS(5));
@@ -117,7 +117,7 @@ void moveToAreaTask(void *pvParameters) {
   moving = false;
   // start finding can routine
   if (RUN) {
-    vTaskResume(locateCanTask);
+    vTaskResume(locateCanTaskHandle);
   }
   //suspend self
   vTaskSuspend(NULL);
@@ -156,9 +156,20 @@ void bluetoothTask(void *pvParameters) {
 
 // loacte Can task
 void locateCanTask(void *pvParameters) {
-  const int step = 1;           // find resolution of servo
-  const int delayBetweenSteps = 150; // ms
+  bool canFound = false;
+  const int step = 20;           
   int distanceF = 0;
+  const int tolerance = 2;
+  const int minSequence = 10;
+
+  struct scanValues {
+    int angle;
+    int distance;
+  };
+
+  scanValues scanData[61]; // store 61 values
+  int count = 0;
+
   for (;;) {
     for (int angle = minUsUltra; angle <= maxUsUltra; angle += step) {
       servoUltrasound.writeMicroseconds(angle);
@@ -171,21 +182,58 @@ void locateCanTask(void *pvParameters) {
       delayMicroseconds(10);
       digitalWrite(trigPinF, LOW);
   
-      vTaskDelay(pdMS_TO_TICKS(55));
+      vTaskDelay(pdMS_TO_TICKS(80));
 
       if (receivedF) {
-        distanceF = (endTimeL - startTimeL) / 58;
-        if (distanceF > 450) {
+        distanceF = (endTimeF - startTimeF) / 58;
+        if (abs(distanceF) > 450) {
           distanceF = 450;
         }
         receivedF = false;
       }
 
-      SerialBT.println(distanceF);
+      scanData[count] = {angle, distanceF};
+      SerialBT.println(String(angle) + "," + String(distanceF));
+      count++;
 
       if (!RUN) {
         vTaskSuspend(NULL);
       }
+    }
+
+    // analyse data to find can
+    for (int start = 0; start < count - minSequence; start++) {
+      int refDist = scanData[start].distance;
+      int length = 1;
+      for (int i = start + 1; i < count; i++) {
+        if (abs(scanData[i].distance - refDist) <= tolerance) {
+          length++;
+        } else {
+          // if not a sequence exit loop and check from next value
+          break;
+        }
+      }
+
+      if (length >= minSequence) {
+        int beforeIdx = start - 1;
+        int afterIdx = start + length;
+
+        bool beforeHigher = (beforeIdx >= 0 && scanData[beforeIdx].distance > refDist + tolerance);
+        bool afterHigher = (afterIdx < count && scanData[afterIdx].distance > refDist + tolerance);
+
+        if (beforeHigher || afterHigher) {
+          int midIdx = start + length / 2;
+          int canAngle = scanData[midIdx].angle;
+          SerialBT.println("CAN: Can Detected at angle: " + String(canAngle));
+          canFound = true;
+          break;   // stop after first detection
+        }
+        start += length;
+      }
+    }
+
+    if (canFound == false) {
+      SerialBT.println("CAN: no can found");
     }
 
     // suspend self
@@ -269,10 +317,10 @@ void setup() {
     4000,
     NULL,
     1,
-    NULL,
+    &locateCanTaskHandle,
     1
   );
-  vTaskSuspend(locateCanTask);
+  vTaskSuspend(locateCanTaskHandle);
 
   delay(1000);
 }

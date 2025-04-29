@@ -26,12 +26,15 @@ int minUsSteer = 1370;
 int maxUsSteer = 1600;
 float neutralPos = 1470.0;
 
-int minUsUltra = 1200;
-int maxUsUltra = 1700;
+int minUsUltra = 900;
+int maxUsUltra = 2100;
+
+//int minUsUltra = 1140;
+//int maxUsUltra = 1860;
 
 // -------------------- Servo Pins --------------------
 const int steeringServoPin = 18;
-const int ultrasoundServoPin = 33;
+const int ultrasoundServoPin = 5;
 
 // -------------------- Ultrasound Sensor Pins --------------------
 const int trigPinR = 23;
@@ -40,8 +43,8 @@ const int echoPinR = 22;
 const int trigPinL = 21;
 const int echoPinL = 19;
 
-const int trigPinF = 16;
-const int echoPinF = 15;
+const int trigPinF = 15;
+const int echoPinF = 16;
 
 // -------------------- Position and Control Variables --------------------
 float pos = 0;
@@ -58,7 +61,7 @@ int initialOffsetR = 0;
 int initialOffsetL = 0;
 
 // -------------------- Steering --------------------
-int steeringAngle = 1470;
+int steeringAngle = 1500;
 
 // -------------------- Ultrasound Timing --------------------
 volatile long startTimeR = 0;
