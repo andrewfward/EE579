@@ -1,61 +1,77 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
-#include <Arduino.h>  // Include Arduino framework
-#include "BluetoothSerial.h"
+#include <Arduino.h>
+#include <BluetoothSerial.h>
 #include <ESP32Servo.h>
 
-// Constants
+
+
+// -------------------- Constants --------------------
 #define SPEED_OF_SOUND 340
 #define NUM_LANDMARKS 3
+#define MAX_LOG_ENTRIES 500
 
-// Bluetooth Serial object
-extern BluetoothSerial SerialBT;
+// -------------------- Structures --------------------
+struct LogEntry {
+    int distanceL;
+    int distanceR;
+    int steering;
+};
 
-// Servo objects
+// -------------------- Extern Variables --------------------
+
+// Logging
+extern LogEntry logData[MAX_LOG_ENTRIES];
+extern int logIndex;
+extern bool logDataReady;
+
+// Movement Flags
+extern bool RUN;
+extern bool moving;
+
+// Servo Objects
 extern Servo servoSteering;
 extern Servo servoUltrasound;
 
-// Min/Max values for the steering servo in us
+// Bluetooth
+extern BluetoothSerial SerialBT;
+
+// Servo Parameters
 extern int minUs;
 extern int maxUs;
 extern float neutralPos;
 
-// Servo pins
+// Servo Pins
 extern const int steeringServoPin;
 extern const int ultrasoundServoPin;
 
-// Right side ultrasound sensor
+// Ultrasound Sensor Pins
 extern const int trigPinR;
 extern const int echoPinR;
-
-// ESC config
-extern const int PWM_PIN;
-extern const int PWM_CHANNEL;
-
-// Left side ultrasound sensor
 extern const int trigPinL;
 extern const int echoPinL;
-
-// Front ultrasound sensor
 extern const int trigPinF;
 extern const int echoPinF;
 
-// Position and control variables
+// Position and Control Variables
 extern float pos;
+extern float posR;
+extern float posL;
 extern int landmarkCounter;
 extern bool landmarkFlag;
 
-// Landmark distances
+// Landmark Distances
 extern const float landmarkDistances[NUM_LANDMARKS];
 
-// Initial offset for distance calculation
-extern int initialOffset;
+// Initial Offsets
+extern int initialOffsetR;
+extern int initialOffsetL;
 
-// Steering angle for the servo
+// Steering
 extern int steeringAngle;
 
-// Timing and state variables for ultrasound sensors
+// Ultrasound Timing
 extern volatile long startTimeR;
 extern volatile long endTimeR;
 extern volatile long startTimeL;
@@ -63,8 +79,9 @@ extern volatile long endTimeL;
 extern volatile bool receivedR;
 extern volatile bool receivedL;
 
-// Task handles
+// FreeRTOS Tasks
 extern TaskHandle_t ultrasoundTaskHandle;
 extern TaskHandle_t moveToAreaTaskHandle;
+extern TaskHandle_t bluetoothTaskHandle;
 
 #endif  // CONFIG_H

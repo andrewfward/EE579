@@ -1,30 +1,30 @@
-
 #include "esc_pwm.h"
 #include "config.h"
 #include <cmath> // For abs() in C++
 
-
+// Function declarations
 void calculateInitialOffset();
 
+// Interrupt handlers
 void IRAM_ATTR echoL() { 
   if (digitalRead(echoPinL)) {
-    startTimeL = micros();  // Echo started
+    startTimeL = micros();
   } else {
-    endTimeL = micros();  // Echo ended
+    endTimeL = micros();
     receivedL = true;
   }
 }
 
 void IRAM_ATTR echoR() { 
   if (digitalRead(echoPinR)) {
-    startTimeR = micros();  // Echo started
+    startTimeR = micros();
   } else {
-    endTimeR = micros();  // Echo ended
+    endTimeR = micros();
     receivedR = true;
   }
 }
 
-
+// Tasks
 void ultrasoundTask(void *pvParameters) {
   float prevPos = 0;
   float newPos = 0;
@@ -33,202 +33,201 @@ void ultrasoundTask(void *pvParameters) {
   int prevDistanceR = 0;
   int prevDistanceL = 0;
 
-  // control param 
-  float Kp = 1;
-  float Ki = 0.0;
+  float Kp = 0.2;
+  float Ki = 0.05;
   float error = 0.0;
   float eIntegral = 0.0;
-  float timeStep = 40.0/1.0e3;
+  float timeStep = 60.0/1.0e3;
+
   for (;;) {
-    
     digitalWrite(trigPinL, LOW);
     digitalWrite(trigPinR, LOW);
     delayMicroseconds(2);
-    // send trigger pulse for 10 us 
+
     digitalWrite(trigPinL, HIGH);
     digitalWrite(trigPinR, HIGH);
     delayMicroseconds(10);
     digitalWrite(trigPinL, LOW);
     digitalWrite(trigPinR, LOW);
 
-    vTaskDelay(pdMS_TO_TICKS(20)); // wait max time for signals to be recived
+    vTaskDelay(pdMS_TO_TICKS(55));
 
     if (receivedL) {
-      distanceL = (endTimeL - startTimeL)/58;
-      if (distanceL > 400) {
-        distanceL = 400;
+      distanceL = (endTimeL - startTimeL) / 58;
+      if (distanceL > 450) {
+        distanceL = 450;
       }
-      SerialBT.print("Left Ultrasonic Sensor: ");
-      SerialBT.println(distanceL);
       receivedL = false;
     }
 
     if (receivedR) {
-      distanceR = (endTimeR - startTimeR)/58;
-      if (distanceR > 400) {
-        distanceR = 400;
+      distanceR = (endTimeR - startTimeR) / 58;
+      if (distanceR > 450) {distanceR = 450;
       }
-      SerialBT.print("Right Ultrasonic Sensor: ");
-      SerialBT.println(distanceR);
       receivedR = false;
     }
+
+    posR = distanceR - initialOffsetR;
+    posL = distanceL - initialOffsetL;
+
+    pos = posR - posL;
+
     
-    newPos = distanceR - distanceL - initialOffset;
-    
-    if (abs(newPos - prevPos) > 25) {
-      initialOffset += (newPos - prevPos);
-      newPos = prevPos;
-      SerialBT.println("dip detected");
+/*
+    if (posL < 1.0 && posR > 1.0 || posL > 1.0 && posR < 1.0) {
+      pos = posR;
     }
-      
-
-    // only update pos when a chnage greater than 1 occurs
-    // this is to reduce the effct of noise
-    // prePos is only updated after the chnage is greater than 1
-    // so a slow chnage in pos will still have an effect after multiple iterations
-    if (fabs(newPos - prevPos) > 1) {
-      pos = (float)newPos;
-      prevPos = newPos;
+    else if (abs(posL) < 1.0 && (posR > -1.0 && posR < 1.0)) {
+      pos = posR;
+    }
+    else if (abs(posR) < 1.0 && (posL > -1.0 && posL < 1.0)) {
+      pos = -posL;
+    } 
+    else {
+      pos = 0;
     }
 
-    prevDistanceR = distanceR;
-    prevDistanceL = distanceL;
+    */
 
-    SerialBT.print("Lateral Position: ");
-    SerialBT.println(pos);
-
-    // add function to detect landmarks (ie dips in the corridor)
-    if (abs(distanceR - prevDistanceR) > 20) {
-      landmarkCounter += 1;
-      //landmarkFlag = true;
-    }
-
-    // control code to convert that pos to an angle (1100 - 1800)
-    // where 1500 is 0
-    // PI controller
+  
 
     error = 0.0 - pos;
-    eIntegral = eIntegral + error*timeStep;
+    eIntegral += error * timeStep;
     steeringAngle = (int)(neutralPos + (Kp * error) + (Ki * eIntegral));
 
-    SerialBT.print("Steering Angle (us): ");
-    SerialBT.println(steeringAngle);
-    SerialBT.println("");
-
-    // saturation constarints
-    if (steeringAngle > maxUs) {
-      steeringAngle = maxUs;
-    }
-
-    if (steeringAngle < minUs) {
-      steeringAngle = minUs;
-    }
+    if (steeringAngle > maxUs) steeringAngle = maxUs;
+    if (steeringAngle < minUs) steeringAngle = minUs;
 
     servoSteering.writeMicroseconds(steeringAngle);
 
-    vTaskDelay(pdMS_TO_TICKS(20)); // wait max time for signals to be recived
+    String logEntry = String(distanceL) + "," + String(distanceR) + "," + String(steeringAngle) + "," + String(pos);
+    SerialBT.println(logEntry);
+
+    if (!RUN) {
+      vTaskSuspend(NULL);
+    }
+    vTaskDelay(pdMS_TO_TICKS(5));
   }
 }
 
 void moveToAreaTask(void *pvParameters) {
-    float estimatedDistance = 0.0;
-    float targetDistance = 0.0;
+  float estimatedDistance = 0.0;
+  float targetDistance = 0.0;
+  long maxTime = 11000; // 9 seconds
+  float estimatedSpeed = 0.01;
+  long startTimeDistance = millis();
+  
+  set_direction(FORWARDS);
 
-    
-    estimatedDistance = 0.0;
+  while (RUN && (millis() - startTimeDistance < maxTime)) {
+    vTaskDelay(pdMS_TO_TICKS(10));
+  }
 
-    // a maximum drive time in case the landmarks dont work
-    long maxTime = 8000;
+  stop_motors();
+  moving = false;
+  RUN = false;
+  vTaskSuspend(moveToAreaTaskHandle);
+}
 
-    // code to set the speed of the motor 
-    // probabily using ledcwrite
-    // 50 Hz (5-10 % duty cycle with 7.5 % being neutral
-    
-    SerialBT.println("started");
 
-    float estimatedSpeed = 0.01;   // guess based on testing (currently random)
-    long startTimeDistance = millis();
-    set_direction(FORWARDS);
+// bluetooth coms task runs every 100 ms
+void bluetoothTask(void *pvParameters) {
+  for (;;) {
+    if (SerialBT.available()) {
+      String command = SerialBT.readStringUntil('\n');
+      command.trim();
 
-    while (millis() - startTimeDistance < maxTime) {
-
-      estimatedDistance += estimatedSpeed * 0.1;
-
-      if (landmarkFlag) {
-        estimatedDistance = landmarkDistances[landmarkCounter];
-        landmarkFlag = false;
+      if (command == "start") {
+        SerialBT.println("Start Command Received");
+        RUN = true;
+        // makes sure the task doesnt start again while it is aleady moving
+        if (!moving) {
+          logIndex = 0;
+          vTaskResume(ultrasoundTaskHandle);
+          vTaskResume(moveToAreaTaskHandle);
+          moving = true;
+        }
+      } else if (command == "stop") {
+        SerialBT.println("Stop Command Received");
+        RUN = false;
+        stop_motors();
+        moving = false;
+      } else if (command == "ping") {
+        SerialBT.println("Pong");
       }
-      
-      vTaskDelay(pdMS_TO_TICKS(100)); // Delay AFTER execution
-
     }
 
-    // stop motors 
-    stop_motors();
-    SerialBT.println("stopped");
-    
-    // pause or delete task, havent decided yet if it wil be reused on the return path
-    vTaskSuspend(moveToAreaTaskHandle);
-  
+    vTaskDelay(pdMS_TO_TICKS(100));
+  }
 }
 
 void setup() {
-    //Serial.begin(115200); // Start Serial Monitor
+  //Serial.begin(115200); // Optional for Serial Monitor
 
-    ESP32PWM::allocateTimer(2);  // Allocate one timer for the steering 
-    ESP32PWM::allocateTimer(3);  // Allocate one timer for the ultraounic sensor servo 
+  SerialBT.begin("ESP32_Rover");
 
-    servoSteering.setPeriodHertz(300);    // set frequency of PWM signal to 300 Hz
-    servoSteering.attach(steeringServoPin, minUs, maxUs);
+  ESP32PWM::allocateTimer(2);
+  ESP32PWM::allocateTimer(3);
 
-    pinMode(trigPinL, OUTPUT);
-    pinMode(echoPinL, INPUT);
+  servoSteering.setPeriodHertz(300);
+  servoSteering.attach(steeringServoPin, minUs, maxUs);
 
-    pinMode(trigPinR, OUTPUT);
-    pinMode(echoPinR, INPUT);
+  pinMode(trigPinL, OUTPUT);
+  pinMode(echoPinL, INPUT);
 
-    // Attach interrupts to handle echo signals
-    attachInterrupt(digitalPinToInterrupt(echoPinL), echoL, CHANGE);
-    attachInterrupt(digitalPinToInterrupt(echoPinR), echoR, CHANGE);
+  pinMode(trigPinR, OUTPUT);
+  pinMode(echoPinR, INPUT);
 
-    SerialBT.begin("ESP32_BT_MC"); // Set Bluetooth device name
-    delay(5000);
+  attachInterrupt(digitalPinToInterrupt(echoPinL), echoL, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(echoPinR), echoR, CHANGE);
+  delay(1000);
 
-    calculateInitialOffset();
-    delay(1000);
+  calculateInitialOffset();
+  delay(1000);
 
-    // code for ESC setup routine
-    motorStartupSequence();   
-    delay(1000);
+  motorStartupSequence();
+  delay(1000);
 
-    // Create the side ultrasound sensor task
-    xTaskCreate(
-      ultrasoundTask,            // Task function
-      "Side Ultrasound",         // Task name
-      2048,                      // Stack size (adjust as needed)
-      NULL,                      // Task parameters
-      1,                         // Task priority (1 is low)
-      &ultrasoundTaskHandle      // Task handle
-    );
+  // Create ultrasound task
+  xTaskCreatePinnedToCore(
+    ultrasoundTask,
+    "Side Ultrasound",
+    4000,
+    NULL,
+    1,
+    &ultrasoundTaskHandle,
+    1
+  );
+  vTaskSuspend(ultrasoundTaskHandle);
 
-    // Create the side ultrasound sensor task
-    xTaskCreate(
-      moveToAreaTask,            // Task function
-      "move to task area",         // Task name
-      2048,                      // Stack size (adjust as needed)
-      NULL,                      // Task parameters
-      1,                         // Task priority (1 is low)
-      &moveToAreaTaskHandle      // Task handle
-    );
+  // Create move task
+  xTaskCreatePinnedToCore(
+    moveToAreaTask,
+    "Move to Area",
+    4000,
+    NULL,
+    1,
+    &moveToAreaTaskHandle,
+    1
+  );
+  vTaskSuspend(moveToAreaTaskHandle);
 
-    // suspend for the minute until the other sections have been tested
-    //vTaskSuspend(moveToAreaTaskHandle);
-    delay(1000);
-   
+  // Create Bluetooth task
+  xTaskCreatePinnedToCore(
+    bluetoothTask,
+    "Bluetooth Comms",
+    4000,
+    NULL,
+    1,
+    NULL,
+    1
+  );
+
+  delay(1000);
 }
 
 void loop() {
-
+  // Nothing needed here
 }
 
 void calculateInitialOffset() {
@@ -237,31 +236,22 @@ void calculateInitialOffset() {
   digitalWrite(trigPinL, LOW);
   digitalWrite(trigPinR, LOW);
   delayMicroseconds(2);
-  // send trigger pulse for 10 us 
+
   digitalWrite(trigPinL, HIGH);
   digitalWrite(trigPinR, HIGH);
   delayMicroseconds(10);
   digitalWrite(trigPinL, LOW);
   digitalWrite(trigPinR, LOW);
 
-  delay(20);
+  delay(30);
 
   if (receivedL) {
-    distanceL = (endTimeL - startTimeL)/58;
-    //SerialBT.print("Left Ultrasonic Sensor: ");
-    //SerialBT.println(distanceL);
+    initialOffsetL = (endTimeL - startTimeL) / 58;
     receivedL = false;
   }
 
   if (receivedR) {
-    distanceR = (endTimeR - startTimeR)/58;
-    //SerialBT.print("Left Ultrasonic Sensor: ");
-    //SerialBT.println(distanceR);
+    initialOffsetR = (endTimeR - startTimeR) / 58;
     receivedR = false;
   }
-
-  initialOffset = distanceR - distanceL;
-
-  SerialBT.print("Initial Offset (cm): ");
-  SerialBT.println(initialOffset);
 }
