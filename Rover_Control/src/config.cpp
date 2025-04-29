@@ -22,7 +22,7 @@ int minUs = 1200;
 int maxUs = 1700;
 */
 
-int minUs = 1380;
+int minUs = 1370;
 int maxUs = 1600;
 float neutralPos = 1470.0;
 
