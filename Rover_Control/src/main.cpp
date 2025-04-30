@@ -118,7 +118,7 @@ void moveToAreaTask(void *pvParameters) {
   // need to add routine to check the front sensor for colisions in case the timing is wrong
   float estimatedDistance = 0.0;
   float targetDistance = 0.0;
-  unsigned long maxTime = (unsigned long)10600; // 10 seconds
+  unsigned long maxTime = (unsigned long)9000; // 10 seconds
   float estimatedSpeed = 0.01;
   unsigned long startTimeDistance = millis();
   
@@ -281,7 +281,20 @@ void locateCanTask(void *pvParameters) {
 }
 
 void driveToCanTask(void *pvParameters) {
+  unsigned long intervalTime = 1400;
+  unsigned long startIntervalTime = -1;
   for (;;) {
+    steeringAngle = neutralPos - ((1500 - canAngle)*0.4);
+    if (steeringAngle > maxUsSteer) steeringAngle = maxUsSteer;
+    if (steeringAngle < minUsSteer) steeringAngle = minUsSteer;
+    servoSteering.writeMicroseconds(steeringAngle);
+    startIntervalTime = millis();
+    set_direction(FORWARDS);
+
+    while (RUN && ((millis() - startIntervalTime) < intervalTime)) {
+      vTaskDelay(pdMS_TO_TICKS(10));
+    }
+    stop_motors();
     vTaskSuspend(NULL);
   }
 }
