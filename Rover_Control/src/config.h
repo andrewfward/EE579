@@ -65,6 +65,10 @@ extern float posL;
 extern int landmarkCounter;
 extern bool landmarkFlag;
 
+// finding can variables 
+extern int canAngle;
+extern float currentCanDistance;
+
 // Landmark Distances
 extern const float landmarkDistances[NUM_LANDMARKS];
 
@@ -91,5 +95,6 @@ extern TaskHandle_t ultrasoundTaskHandle;
 extern TaskHandle_t moveToAreaTaskHandle;
 extern TaskHandle_t bluetoothTaskHandle;
 extern TaskHandle_t locateCanTaskHandle;
+extern TaskHandle_t driveToCanTaskHandle;
 
 #endif  // CONFIG_H

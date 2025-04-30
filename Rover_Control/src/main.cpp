@@ -48,37 +48,51 @@ void ultrasoundTask(void *pvParameters) {
   float eIntegral = 0.0;
   float timeStep = 60.0/1.0e3;
 
+  // when false use left sensor when true use right 
+  // this is to avoid them triggering each other
+  bool toggleSensor = false;
+
   for (;;) {
-    digitalWrite(trigPinL, LOW);
-    digitalWrite(trigPinR, LOW);
-    delayMicroseconds(2);
 
-    digitalWrite(trigPinL, HIGH);
-    digitalWrite(trigPinR, HIGH);
-    delayMicroseconds(10);
-    digitalWrite(trigPinL, LOW);
-    digitalWrite(trigPinR, LOW);
-
-    vTaskDelay(pdMS_TO_TICKS(55));
-
-    if (receivedL) {
-      distanceL = (endTimeL - startTimeL) / 58;
-      if (distanceL > 450) {
-        distanceL = 450;
+    if (toggleSensor == false) {
+      digitalWrite(trigPinL, LOW);
+      delayMicroseconds(2);
+      digitalWrite(trigPinL, HIGH);
+      delayMicroseconds(10);
+      digitalWrite(trigPinL, LOW);
+      vTaskDelay(pdMS_TO_TICKS(55));
+      if (receivedL) {
+        distanceL = (endTimeL - startTimeL) / 58;
+        if (distanceL > 450) {
+          distanceL = 450;
+        }
+        receivedL = false;
       }
-      receivedL = false;
-    }
-
-    if (receivedR) {
-      distanceR = (endTimeR - startTimeR) / 58;
-      if (distanceR > 450) {distanceR = 450;
+      posL = distanceL - initialOffsetL;
+    } else {
+      digitalWrite(trigPinR, LOW);
+      delayMicroseconds(2);
+      digitalWrite(trigPinR, HIGH);
+      delayMicroseconds(10);
+      digitalWrite(trigPinR, LOW);
+      vTaskDelay(pdMS_TO_TICKS(60));
+      if (receivedR) {
+        distanceR = (endTimeR - startTimeR) / 58;
+        if (distanceR > 450) {distanceR = 450;
+        }
+        receivedR = false;
       }
-      receivedR = false;
+      posR = distanceR - initialOffsetR;
     }
+    /*
+    if (abs(posR) < abs(posL)) {
+      pos = posR;
+    } else {
+      pos = -posL;
+    }
+      */
 
-    posR = distanceR - initialOffsetR;
-    posL = distanceL - initialOffsetL;
-
+    toggleSensor = !toggleSensor;
     pos = posR - posL;
 
     error = 0.0 - pos;
@@ -101,24 +115,27 @@ void ultrasoundTask(void *pvParameters) {
 }
 
 void moveToAreaTask(void *pvParameters) {
+  // need to add routine to check the front sensor for colisions in case the timing is wrong
   float estimatedDistance = 0.0;
   float targetDistance = 0.0;
-  long maxTime = 11000; // 9 seconds
+  unsigned long maxTime = (unsigned long)10600; // 10 seconds
   float estimatedSpeed = 0.01;
-  long startTimeDistance = millis();
+  unsigned long startTimeDistance = millis();
   
   set_direction(FORWARDS);
 
-  while (RUN && (millis() - startTimeDistance < maxTime)) {
+  while (RUN && ((millis() - startTimeDistance) < maxTime)) {
     vTaskDelay(pdMS_TO_TICKS(10));
   }
 
   stop_motors();
+  SerialBT.println("CAN: Stopped moving");
   moving = false;
   // start finding can routine
   if (RUN) {
     vTaskResume(locateCanTaskHandle);
   }
+  
   //suspend self
   vTaskSuspend(NULL);
 }
@@ -146,6 +163,8 @@ void bluetoothTask(void *pvParameters) {
         moving = false;
       } else if (command == "ping") {
         SerialBT.println("Pong");
+        SerialBT.println("CAN: right offset: " + String(initialOffsetR));
+        SerialBT.println("CAN: left offset: " + String(initialOffsetL));
       }
     }
 
@@ -161,6 +180,7 @@ void locateCanTask(void *pvParameters) {
   int distanceF = 0;
   const int tolerance = 2;
   const int minSequence = 10;
+  const int maxMismatches = 1;
 
   struct scanValues {
     int angle;
@@ -201,15 +221,19 @@ void locateCanTask(void *pvParameters) {
       }
     }
 
+    int midIdx = -1;
     // analyse data to find can
     for (int start = 0; start < count - minSequence; start++) {
       int refDist = scanData[start].distance;
       int length = 1;
+      int mismatches = 0;
       for (int i = start + 1; i < count; i++) {
         if (abs(scanData[i].distance - refDist) <= tolerance) {
           length++;
+        } else if (mismatches < maxMismatches){
+          mismatches++;
+          length++;
         } else {
-          // if not a sequence exit loop and check from next value
           break;
         }
       }
@@ -221,12 +245,23 @@ void locateCanTask(void *pvParameters) {
         bool beforeHigher = (beforeIdx >= 0 && scanData[beforeIdx].distance > refDist + tolerance);
         bool afterHigher = (afterIdx < count && scanData[afterIdx].distance > refDist + tolerance);
 
+        // if it is a valid potentual can 
         if (beforeHigher || afterHigher) {
-          int midIdx = start + length / 2;
-          int canAngle = scanData[midIdx].angle;
-          SerialBT.println("CAN: Can Detected at angle: " + String(canAngle));
           canFound = true;
-          break;   // stop after first detection
+          float distanceSum = 0;
+          float tempAverage = 0;
+          // find average distance for comparison
+          for (int j = start; j < (afterIdx - 1); j++) {
+            distanceSum += scanData[j].distance;
+          }
+          tempAverage = distanceSum / (float)((afterIdx - 1) - start);
+          // if less than the last found dip then replace (as more likely to be can)
+          if (tempAverage < currentCanDistance) {
+            currentCanDistance = tempAverage;
+            midIdx = start + length / 2;
+            canAngle = scanData[midIdx].angle;
+          }
+          tempAverage = 0;
         }
         start += length;
       }
@@ -234,9 +269,19 @@ void locateCanTask(void *pvParameters) {
 
     if (canFound == false) {
       SerialBT.println("CAN: no can found");
+      // add logic for failure to find can
+    } else {
+      SerialBT.println("CAN: Can Detected at angle: " + String(canAngle));
+      vTaskResume(driveToCanTaskHandle);
     }
 
     // suspend self
+    vTaskSuspend(NULL);
+  }
+}
+
+void driveToCanTask(void *pvParameters) {
+  for (;;) {
     vTaskSuspend(NULL);
   }
 }
@@ -269,10 +314,10 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(echoPinF), echoF, CHANGE);
   delay(1000);
 
-  calculateInitialOffset();
-  delay(1000);
-
   motorStartupSequence();
+  delay(5000);
+
+  calculateInitialOffset();
   delay(1000);
 
   // Create ultrasound task
@@ -322,6 +367,18 @@ void setup() {
   );
   vTaskSuspend(locateCanTaskHandle);
 
+  // Create task to drive to can
+  xTaskCreatePinnedToCore(
+    driveToCanTask,
+    "drive to can",
+    4000,
+    NULL,
+    1,
+    &driveToCanTaskHandle,
+    1
+  );
+  vTaskSuspend(driveToCanTaskHandle);
+
   delay(1000);
 }
 
@@ -333,21 +390,25 @@ void calculateInitialOffset() {
   int distanceL = 0;
   int distanceR = 0;
   digitalWrite(trigPinL, LOW);
-  digitalWrite(trigPinR, LOW);
   delayMicroseconds(2);
 
   digitalWrite(trigPinL, HIGH);
-  digitalWrite(trigPinR, HIGH);
   delayMicroseconds(10);
   digitalWrite(trigPinL, LOW);
-  digitalWrite(trigPinR, LOW);
-
-  delay(30);
+  
+  delay(60);
 
   if (receivedL) {
     initialOffsetL = (endTimeL - startTimeL) / 58;
     receivedL = false;
   }
+
+  digitalWrite(trigPinR, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trigPinR, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPinR, LOW);
+  delay(60);
 
   if (receivedR) {
     initialOffsetR = (endTimeR - startTimeR) / 58;
