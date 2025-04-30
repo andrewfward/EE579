@@ -176,10 +176,10 @@ void bluetoothTask(void *pvParameters) {
 // loacte Can task
 void locateCanTask(void *pvParameters) {
   bool canFound = false;
-  const int step = 20;           
+  const int step = 40;           
   int distanceF = 0;
-  const int tolerance = 2;
-  const int minSequence = 10;
+  const int tolerance = 3;
+  const int minSequence = 5;
   const int maxMismatches = 1;
 
   struct scanValues {
@@ -187,9 +187,9 @@ void locateCanTask(void *pvParameters) {
     int distance;
   };
 
-  scanValues scanData[61]; // store 61 values
+  scanValues scanData[31]; // store 61 values
   int count = 0;
-
+  // outer for loop exists so that task can be resumed
   for (;;) {
     for (int angle = minUsUltra; angle <= maxUsUltra; angle += step) {
       servoUltrasound.writeMicroseconds(angle);
@@ -268,11 +268,15 @@ void locateCanTask(void *pvParameters) {
     }
 
     if (canFound == false) {
-      SerialBT.println("CAN: no can found");
+      SerialBT.println("CAN: not can found");
       // add logic for failure to find can
     } else {
       SerialBT.println("CAN: Can Detected at angle: " + String(canAngle));
-      vTaskResume(driveToCanTaskHandle);
+      if (currentCanDistance > 20) {
+        vTaskResume(driveToCanTaskHandle);
+      } else {
+        SerialBT.println("CAN: Arrived at can");
+      }
     }
 
     // suspend self
@@ -281,7 +285,7 @@ void locateCanTask(void *pvParameters) {
 }
 
 void driveToCanTask(void *pvParameters) {
-  unsigned long intervalTime = 1400;
+  unsigned long intervalTime = 1500;
   unsigned long startIntervalTime = -1;
   for (;;) {
     steeringAngle = neutralPos - ((1500 - canAngle)*0.4);
@@ -295,6 +299,7 @@ void driveToCanTask(void *pvParameters) {
       vTaskDelay(pdMS_TO_TICKS(10));
     }
     stop_motors();
+    vTaskResume(locateCanTaskHandle);
     vTaskSuspend(NULL);
   }
 }
