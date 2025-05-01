@@ -22,13 +22,19 @@ int minUs = 1200;
 int maxUs = 1700;
 */
 
-int minUs = 1370;
-int maxUs = 1600;
-float neutralPos = 1470.0;
+int minUsSteer = 1170;
+int maxUsSteer = 1770;
+float neutralPos = 1450.0;
+
+int minUsUltra = 900;
+int maxUsUltra = 2100;
+
+//int minUsUltra = 1140;
+//int maxUsUltra = 1860;
 
 // -------------------- Servo Pins --------------------
 const int steeringServoPin = 18;
-const int ultrasoundServoPin = 33;
+const int ultrasoundServoPin = 5;
 
 // -------------------- Ultrasound Sensor Pins --------------------
 const int trigPinR = 23;
@@ -37,8 +43,8 @@ const int echoPinR = 22;
 const int trigPinL = 21;
 const int echoPinL = 19;
 
-const int trigPinF = 16;
-const int echoPinF = 15;
+const int trigPinF = 15;
+const int echoPinF = 16;
 
 // -------------------- Position and Control Variables --------------------
 float pos = 0;
@@ -47,6 +53,9 @@ float posL = 0;
 int landmarkCounter = -1;
 bool landmarkFlag = false;
 
+// -------------------- finding can variables --------------------
+int canAngle = -1;
+float currentCanDistance = 400.0;
 // -------------------- Landmark Distances --------------------
 const float landmarkDistances[NUM_LANDMARKS] = {2.5, 3.0, 5.0};
 
@@ -55,17 +64,22 @@ int initialOffsetR = 0;
 int initialOffsetL = 0;
 
 // -------------------- Steering --------------------
-int steeringAngle = 1500;
+int steeringAngle = 1470;
 
 // -------------------- Ultrasound Timing --------------------
 volatile long startTimeR = 0;
 volatile long endTimeR = 0;
 volatile long startTimeL = 0;
 volatile long endTimeL = 0;
+volatile long startTimeF = 0;
+volatile long endTimeF = 0;
 volatile bool receivedR = false;
 volatile bool receivedL = false;
+volatile bool receivedF = false;
 
 // -------------------- FreeRTOS Task Handles --------------------
 TaskHandle_t ultrasoundTaskHandle = NULL;
 TaskHandle_t moveToAreaTaskHandle = NULL;
 TaskHandle_t bluetoothTaskHandle = NULL;
+TaskHandle_t locateCanTaskHandle = NULL;
+TaskHandle_t driveToCanTaskHandle;

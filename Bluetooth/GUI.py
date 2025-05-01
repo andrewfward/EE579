@@ -84,6 +84,9 @@ class RoverControlApp:
                         # Change button colors without pop-up
                         self.stop_button.config(bg="green", fg="white")  # Change Stop button color
                         self.start_button.config(bg="red", fg="white")   # Change Start button color
+                    elif line.startswith("CAN:"):
+                        self.text_log.insert(tk.END, f"*** {line[4:].strip()} ***\n")  # remove the 'CAN:' prefix
+                        self.text_log.see(tk.END)
                     else:
                         # Assuming data comes in the format: DistanceLeft,DistanceRight,SteeringAngle,Pos
                         data_parts = line.split(',')
@@ -93,6 +96,13 @@ class RoverControlApp:
                             steering_angle = data_parts[2]
                             pos = data_parts[3]
                             # Append the data to the log with the new "pos" column
+                            self.data_log.append([distance_left, distance_right, steering_angle, pos])
+                            self.text_log.insert(tk.END, f"{line}\n")
+                        if len(data_parts) == 2:
+                            distance_left = data_parts[0]
+                            distance_right = data_parts[1]
+                            steering_angle = data_parts[0]
+                            pos = data_parts[1]
                             self.data_log.append([distance_left, distance_right, steering_angle, pos])
                             self.text_log.insert(tk.END, f"{line}\n")
                     self.text_log.see(tk.END)
