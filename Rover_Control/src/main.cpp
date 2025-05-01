@@ -178,7 +178,7 @@ void locateCanTask(void *pvParameters) {
   bool canFound = false;
   const int step = 40;           
   int distanceF = 0;
-  const int tolerance = 3;
+  const int tolerance = 5;
   const int minSequence = 5;
   const int maxMismatches = 1;
 
@@ -188,9 +188,11 @@ void locateCanTask(void *pvParameters) {
   };
 
   scanValues scanData[31]; // store 61 values
-  int count = 0;
   // outer for loop exists so that task can be resumed
   for (;;) {
+    int count = 0;
+    canFound = false;
+    currentCanDistance = 400.0;
     for (int angle = minUsUltra; angle <= maxUsUltra; angle += step) {
       servoUltrasound.writeMicroseconds(angle);
       vTaskDelay(pdMS_TO_TICKS(300));
@@ -232,7 +234,6 @@ void locateCanTask(void *pvParameters) {
           length++;
         } else if (mismatches < maxMismatches){
           mismatches++;
-          length++;
         } else {
           break;
         }
@@ -241,9 +242,38 @@ void locateCanTask(void *pvParameters) {
       if (length >= minSequence) {
         int beforeIdx = start - 1;
         int afterIdx = start + length;
+        int sumAfter = 0;
+        int sumBefore = 0;
+        int countA = 0;
+        int countB = 0;
+        int averageAfter = 0;
+        int averageBefore = 0;
 
-        bool beforeHigher = (beforeIdx >= 0 && scanData[beforeIdx].distance > refDist + tolerance);
-        bool afterHigher = (afterIdx < count && scanData[afterIdx].distance > refDist + tolerance);
+        // calculate the average value after and before the sequence
+        // made up of 3 values or however many there are (start of the array / end of the array)
+        for (int k = afterIdx; k < afterIdx + 3; k++) {
+          if (k > count) {
+            break;
+          }
+          sumAfter += scanData[k].distance;
+          countA++;
+        }
+
+        for (int k = beforeIdx; k > beforeIdx - 3; k--) {
+          if (k < 0) {
+            break;
+          }
+          sumBefore += scanData[k].distance;
+          countB++;
+        }
+
+        averageAfter = sumAfter / countA;
+        averageBefore = sumBefore / countB;
+        SerialBT.println("CAN: average after: " + String(averageAfter));
+        SerialBT.println("CAN: average before: " + String(averageBefore));
+
+        bool beforeHigher = (beforeIdx >= 0 && averageAfter > refDist + (tolerance));
+        bool afterHigher = (afterIdx < count && averageBefore > refDist + (tolerance));
 
         // if it is a valid potentual can 
         if (beforeHigher || afterHigher) {
@@ -272,13 +302,12 @@ void locateCanTask(void *pvParameters) {
       // add logic for failure to find can
     } else {
       SerialBT.println("CAN: Can Detected at angle: " + String(canAngle));
-      if (currentCanDistance > 20) {
-        vTaskResume(driveToCanTaskHandle);
-      } else {
+      if (currentCanDistance < 10.0) {
         SerialBT.println("CAN: Arrived at can");
+      } else {
+        vTaskResume(driveToCanTaskHandle);
       }
     }
-
     // suspend self
     vTaskSuspend(NULL);
   }
@@ -288,7 +317,8 @@ void driveToCanTask(void *pvParameters) {
   unsigned long intervalTime = 1500;
   unsigned long startIntervalTime = -1;
   for (;;) {
-    steeringAngle = neutralPos - ((1500 - canAngle)*0.4);
+    intervalTime =  ((int)currentCanDistance) * 12 + 400;
+    steeringAngle = neutralPos - ((1500 - canAngle)*0.5);
     if (steeringAngle > maxUsSteer) steeringAngle = maxUsSteer;
     if (steeringAngle < minUsSteer) steeringAngle = minUsSteer;
     servoSteering.writeMicroseconds(steeringAngle);

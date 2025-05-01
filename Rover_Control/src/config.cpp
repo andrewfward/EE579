@@ -55,7 +55,7 @@ bool landmarkFlag = false;
 
 // -------------------- finding can variables --------------------
 int canAngle = -1;
-float currentCanDistance = 400;
+float currentCanDistance = 400.0;
 // -------------------- Landmark Distances --------------------
 const float landmarkDistances[NUM_LANDMARKS] = {2.5, 3.0, 5.0};
 
