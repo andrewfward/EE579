@@ -5,7 +5,7 @@
 // Function declarations
 void calculateInitialOffset();
 
-// Interrupt handlers
+// Interrupts for each ultrasound sensor
 void IRAM_ATTR echoL() { 
   if (digitalRead(echoPinL)) {
     startTimeL = micros();
@@ -42,18 +42,21 @@ void ultrasoundTask(void *pvParameters) {
   int prevDistanceR = 0;
   int prevDistanceL = 0;
 
+  // controller gains
   float Kp = 0.2;
   float Ki = 0.05;
+
   float error = 0.0;
   float eIntegral = 0.0;
-  float timeStep = 60.0/1.0e3;
+  float timeStep = 65.0/1.0e3;
 
   // when false use left sensor when true use right 
   // this is to avoid them triggering each other
   bool toggleSensor = false;
 
   for (;;) {
-
+    // logic to trigger the ultrasound sensors (bassed off datasheet)
+    // uses the interrupts at the top
     if (toggleSensor == false) {
       digitalWrite(trigPinL, LOW);
       delayMicroseconds(2);
@@ -68,6 +71,8 @@ void ultrasoundTask(void *pvParameters) {
         }
         receivedL = false;
       }
+      // calculates each offset because at one point I was seperatly handling the left and right sensors 
+      // rather than combining then like it does now (functioanlly this is no different)
       posL = distanceL - initialOffsetL;
     } else {
       digitalWrite(trigPinR, LOW);
@@ -75,6 +80,9 @@ void ultrasoundTask(void *pvParameters) {
       digitalWrite(trigPinR, HIGH);
       delayMicroseconds(10);
       digitalWrite(trigPinR, LOW);
+
+      // delay to wait for interupts to pick up the return signal 
+      // if this is chnaged also need to chnage timeStep to match
       vTaskDelay(pdMS_TO_TICKS(60));
       if (receivedR) {
         distanceR = (endTimeR - startTimeR) / 58;
@@ -84,26 +92,23 @@ void ultrasoundTask(void *pvParameters) {
       }
       posR = distanceR - initialOffsetR;
     }
-    /*
-    if (abs(posR) < abs(posL)) {
-      pos = posR;
-    } else {
-      pos = -posL;
-    }
-      */
 
     toggleSensor = !toggleSensor;
+
+    // calculate pos based on the left and right psotion
     pos = posR - posL;
 
+    // PI controller calculations 
     error = 0.0 - pos;
     eIntegral += error * timeStep;
     steeringAngle = (int)(neutralPos + (Kp * error) + (Ki * eIntegral));
 
+    // bounds the steering value and applies it to the servo
     if (steeringAngle > maxUsSteer) steeringAngle = maxUsSteer;
     if (steeringAngle < minUsSteer) steeringAngle = minUsSteer;
-
     servoSteering.writeMicroseconds(steeringAngle);
 
+    // logs the left and right distances, and the steering value and position
     String logEntry = String(distanceL) + "," + String(distanceR) + "," + String(steeringAngle) + "," + String(pos);
     SerialBT.println(logEntry);
 
@@ -114,16 +119,20 @@ void ultrasoundTask(void *pvParameters) {
   }
 }
 
+// task to move to the general area of the can 
 void moveToAreaTask(void *pvParameters) {
   // need to add routine to check the front sensor for colisions in case the timing is wrong
   float estimatedDistance = 0.0;
   float targetDistance = 0.0;
-  unsigned long maxTime = (unsigned long)9000; // 10 seconds
+
+  // adjust to change how far it moves
+  unsigned long maxTime = 9000; 
   float estimatedSpeed = 0.01;
   unsigned long startTimeDistance = millis();
   
   set_direction(FORWARDS);
 
+  // moves forward for maxTime unless stopped from interface
   while (RUN && ((millis() - startTimeDistance) < maxTime)) {
     vTaskDelay(pdMS_TO_TICKS(10));
   }
@@ -131,7 +140,7 @@ void moveToAreaTask(void *pvParameters) {
   stop_motors();
   SerialBT.println("CAN: Stopped moving");
   moving = false;
-  // start finding can routine
+  // start finding can routine if still in RUN
   if (RUN) {
     vTaskResume(locateCanTaskHandle);
   }
@@ -162,12 +171,13 @@ void bluetoothTask(void *pvParameters) {
         stop_motors();
         moving = false;
       } else if (command == "ping") {
+        // confirms connection and prints out the offsets
         SerialBT.println("Pong");
         SerialBT.println("CAN: right offset: " + String(initialOffsetR));
         SerialBT.println("CAN: left offset: " + String(initialOffsetL));
       }
     }
-
+    // runs roughly every 100 ms
     vTaskDelay(pdMS_TO_TICKS(100));
   }
 }
@@ -180,8 +190,9 @@ void locateCanTask(void *pvParameters) {
   int distanceF = 0;
   const int tolerance = 5;
   const int minSequence = 5;
-  const int maxMismatches = 1;
+  const int maxMismatches = 1;      // allowed mismatches in the sequence
 
+  // structure to store can values
   struct scanValues {
     int angle;
     int distance;
@@ -193,6 +204,9 @@ void locateCanTask(void *pvParameters) {
     int count = 0;
     canFound = false;
     currentCanDistance = 400.0;
+
+    // sweeps the servo through 32 points
+    // and takes an ultraound reading at each point
     for (int angle = minUsUltra; angle <= maxUsUltra; angle += step) {
       servoUltrasound.writeMicroseconds(angle);
       vTaskDelay(pdMS_TO_TICKS(300));
@@ -215,6 +229,8 @@ void locateCanTask(void *pvParameters) {
       }
 
       scanData[count] = {angle, distanceF};
+
+      // prints out the angle and distance to the GUI
       SerialBT.println(String(angle) + "," + String(distanceF));
       count++;
 
@@ -239,6 +255,8 @@ void locateCanTask(void *pvParameters) {
         }
       }
 
+      // if the length of the sequence is greater than the min sequence length 
+      // check if it is a valid sequence
       if (length >= minSequence) {
         int beforeIdx = start - 1;
         int afterIdx = start + length;
@@ -313,32 +331,51 @@ void locateCanTask(void *pvParameters) {
   }
 }
 
+// task to drive towards the can location found in the locateCanTask
 void driveToCanTask(void *pvParameters) {
-  unsigned long intervalTime = 1500;
+  unsigned long intervalTime;
   unsigned long startIntervalTime = -1;
+  const int timeMultiplier = 12;
+  const int timeOffset = 600;
+
+  // this was guessed and can be adjusted as required
+  const float servoRelation = 0.5;
+
+  //infinite loop so that it can be resumed
   for (;;) {
-    intervalTime =  (((int)currentCanDistance) * 12) + 600;
-    steeringAngle = neutralPos - ((1500 - canAngle)*0.5);
+    // sets the drive forward time as a function of the distance from the can
+    intervalTime =  (((int)currentCanDistance) * timeMultiplier) + timeOffset;
+
+    // relates the angle of the ultrasound servo to the angle of the steering servo
+    // 1500 is taken as the neutral angle for the ultrasound servo (this was never actuall tested to be exactly correct)
+    steeringAngle = neutralPos - ((1500 - canAngle)*servoRelation);
+
+    // sets bounds on the maximum steering angle
     if (steeringAngle > maxUsSteer) steeringAngle = maxUsSteer;
     if (steeringAngle < minUsSteer) steeringAngle = minUsSteer;
+
+    // sets the steering servo angle
     servoSteering.writeMicroseconds(steeringAngle);
     startIntervalTime = millis();
     set_direction(FORWARDS);
 
+    // moves froward for the intervalTime unless stopped from bluetooth interface
     while (RUN && ((millis() - startIntervalTime) < intervalTime)) {
       vTaskDelay(pdMS_TO_TICKS(10));
     }
     stop_motors();
     vTaskResume(locateCanTaskHandle);
+    // suspends self
     vTaskSuspend(NULL);
   }
 }
 
 void setup() {
-  //Serial.begin(115200); // Optional for Serial Monitor
 
+  // begins the bluetooth interface
   SerialBT.begin("ESP32_Rover");
 
+  // allocates timers for PWM for the ESC
   ESP32PWM::allocateTimer(2);
   ESP32PWM::allocateTimer(3);
 
@@ -368,6 +405,7 @@ void setup() {
   calculateInitialOffset();
   delay(1000);
 
+  // create tasks //
   // Create ultrasound task
   xTaskCreatePinnedToCore(
     ultrasoundTask,

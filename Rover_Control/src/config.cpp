@@ -56,8 +56,6 @@ bool landmarkFlag = false;
 // -------------------- finding can variables --------------------
 int canAngle = -1;
 float currentCanDistance = 400.0;
-// -------------------- Landmark Distances --------------------
-const float landmarkDistances[NUM_LANDMARKS] = {2.5, 3.0, 5.0};
 
 // -------------------- Initial Offsets --------------------
 int initialOffsetR = 0;
@@ -82,4 +80,4 @@ TaskHandle_t ultrasoundTaskHandle = NULL;
 TaskHandle_t moveToAreaTaskHandle = NULL;
 TaskHandle_t bluetoothTaskHandle = NULL;
 TaskHandle_t locateCanTaskHandle = NULL;
-TaskHandle_t driveToCanTaskHandle;
+TaskHandle_t driveToCanTaskHandle = NULL;

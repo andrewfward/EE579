@@ -69,9 +69,6 @@ extern bool landmarkFlag;
 extern int canAngle;
 extern float currentCanDistance;
 
-// Landmark Distances
-extern const float landmarkDistances[NUM_LANDMARKS];
-
 // Initial Offsets
 extern int initialOffsetR;
 extern int initialOffsetL;
