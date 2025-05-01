@@ -24,7 +24,7 @@ int maxUs = 1700;
 
 int minUsSteer = 1170;
 int maxUsSteer = 1770;
-float neutralPos = 1470.0;
+float neutralPos = 1450.0;
 
 int minUsUltra = 900;
 int maxUsUltra = 2100;
@@ -64,7 +64,7 @@ int initialOffsetR = 0;
 int initialOffsetL = 0;
 
 // -------------------- Steering --------------------
-int steeringAngle = 1500;
+int steeringAngle = 1470;
 
 // -------------------- Ultrasound Timing --------------------
 volatile long startTimeR = 0;

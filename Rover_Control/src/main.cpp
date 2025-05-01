@@ -298,7 +298,7 @@ void locateCanTask(void *pvParameters) {
     }
 
     if (canFound == false) {
-      SerialBT.println("CAN: not can found");
+      SerialBT.println("CAN: no can found");
       // add logic for failure to find can
     } else {
       SerialBT.println("CAN: Can Detected at angle: " + String(canAngle));
@@ -317,7 +317,7 @@ void driveToCanTask(void *pvParameters) {
   unsigned long intervalTime = 1500;
   unsigned long startIntervalTime = -1;
   for (;;) {
-    intervalTime =  ((int)currentCanDistance) * 12 + 400;
+    intervalTime =  (((int)currentCanDistance) * 12) + 600;
     steeringAngle = neutralPos - ((1500 - canAngle)*0.5);
     if (steeringAngle > maxUsSteer) steeringAngle = maxUsSteer;
     if (steeringAngle < minUsSteer) steeringAngle = minUsSteer;
