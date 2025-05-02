@@ -104,7 +104,7 @@ int ultrasonicSensor(int trigPin) {
   digitalWrite(trigPin, LOW);
   vTaskDelay(pdMS_TO_TICKS(55));
   
-  while(!receivedL && !receivedR && !receivedF) {
+  while(!receivedL || !receivedR || !receivedF) {
     vTaskDelay(pdMS_TO_TICKS(5));
   }
   
