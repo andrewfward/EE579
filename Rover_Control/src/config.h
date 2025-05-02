@@ -37,6 +37,9 @@ extern Servo servoUltrasound;
 // Bluetooth
 extern BluetoothSerial SerialBT;
 
+// Offsets calculated
+extern bool offsetsCalculated;
+
 // Servo Parameters
 extern int minUsSteer;
 extern int maxUsSteer;

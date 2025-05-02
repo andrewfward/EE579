@@ -58,8 +58,20 @@ void ultrasoundTask(void *pvParameters) {
   for (;;) {
     // logic to trigger the ultrasound sensors (bassed off datasheet)
     // uses the interrupts at the top
-    if (toggleSensor == false) {
-      distanceL = ultrasonicSensor(trigPinL);
+    if ((toggleSensor == false) && (offsetsCalculated == true)) {
+      digitalWrite(trigPinL, LOW);
+      delayMicroseconds(2);
+      digitalWrite(trigPinL, HIGH);
+      delayMicroseconds(10);
+      digitalWrite(trigPinL, LOW);
+      vTaskDelay(pdMS_TO_TICKS(55));
+      if (receivedL) {
+        distanceL = (endTimeL - startTimeL) / 58;
+        if (distanceL > 450) {
+          distanceL = 450;
+        }
+        receivedL = false;
+      }
       // calculates each offset because at one point I was seperatly handling the left and right sensors 
       // rather than combining then like it does now (functioanlly this is no different)
       posL = distanceL - initialOffsetL;
@@ -184,8 +196,12 @@ void bluetoothTask(void *pvParameters) {
       } else if (command == "ping") {
         // confirms connection and prints out the offsets
         SerialBT.println("Pong");
+      } else if (command == "calc_offsets") {
+        calculateInitialOffset();      
         SerialBT.println("CAN: right offset: " + String(initialOffsetR));
         SerialBT.println("CAN: left offset: " + String(initialOffsetL));
+        delay(1000);
+        offsetsCalculated = true;
       }
     }
     // runs roughly every 100 ms
@@ -399,8 +415,8 @@ void setup() {
   motorStartupSequence();
   delay(5000);
 
-  calculateInitialOffset();
-  delay(1000);
+  // calculateInitialOffset();
+  // delay(1000);
 
   // create tasks //
   // Create ultrasound task
