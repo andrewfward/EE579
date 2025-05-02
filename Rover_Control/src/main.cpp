@@ -345,7 +345,7 @@ void driveToCanTask(void *pvParameters) {
   for (;;) {
     // sets the drive forward time as a function of the distance from the can
     intervalTime =  (((int)currentCanDistance) * timeMultiplier) + timeOffset;
-    SerialBT.println("CAN: Interval time to drive towards can: " + String(intervalTime);
+    SerialBT.println("CAN: Interval time to drive towards can: " + String(intervalTime));
     // relates the angle of the ultrasound servo to the angle of the steering servo
     // 1500 is taken as the neutral angle for the ultrasound servo (this was never actuall tested to be exactly correct)
     steeringAngle = neutralPos - ((1500 - canAngle)*servoRelation);
