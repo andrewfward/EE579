@@ -274,22 +274,7 @@ void locateCanTask(void *pvParameters) {
       servoUltrasound.writeMicroseconds(angle);
       vTaskDelay(pdMS_TO_TICKS(300));
 
-      digitalWrite(trigPinF, LOW);
-      delayMicroseconds(2);
-  
-      digitalWrite(trigPinF, HIGH);
-      delayMicroseconds(10);
-      digitalWrite(trigPinF, LOW);
-  
-      vTaskDelay(pdMS_TO_TICKS(80));
-
-      if (receivedF) {
-        distanceF = (endTimeF - startTimeF) / 58;
-        if (abs(distanceF) > 450) {
-          distanceF = 450;
-        }
-        receivedF = false;
-      }
+      distanceF = ultrasonicSensor(trigPinF);
 
       scanData[count] = {angle, distanceF};
 
