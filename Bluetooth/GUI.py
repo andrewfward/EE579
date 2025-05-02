@@ -32,6 +32,8 @@ class RoverControlApp:
         self.stop_button.grid(row=0, column=1, padx=5)
         self.save_button = tk.Button(self.control_frame, text="Save Log", command=self.save_log, state='disabled')
         self.save_button.grid(row=0, column=2, padx=5)
+        self.offsets_button = tk.Button(self.control_frame, text="Calculate Offsets", command=self.calc_offsets, state='disabled')
+        self.offsets_button.grid(row=0, column=3, padx=5)
 
         self.log_frame = tk.Frame(root)
         self.log_frame.pack()
@@ -46,6 +48,7 @@ class RoverControlApp:
             self.start_button.config(state='normal')
             self.stop_button.config(state='normal')
             self.save_button.config(state='normal')
+            self.offsets_button.config(state='normal')
             self.running = True
             threading.Thread(target=self.read_serial, daemon=True).start()
 
@@ -118,6 +121,10 @@ class RoverControlApp:
                     # Add the new header with the "Pos" column
                     writer.writerow(["DistanceLeft", "DistanceRight", "SteeringAngle", "Pos"])
                     writer.writerows(self.data_log)
+
+    def calc_offsets(self):
+        self.serial_port.write(b'calc_offsets\n')
+
 
     def on_closing(self):
         self.running = False

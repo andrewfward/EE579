@@ -57,7 +57,7 @@ void ultrasoundTask(void *pvParameters) {
   for (;;) {
     // logic to trigger the ultrasound sensors (bassed off datasheet)
     // uses the interrupts at the top
-    if (toggleSensor == false) {
+    if ((toggleSensor == false) && (offsetsCalculated == true)) {
       digitalWrite(trigPinL, LOW);
       delayMicroseconds(2);
       digitalWrite(trigPinL, HIGH);
@@ -126,7 +126,7 @@ void moveToAreaTask(void *pvParameters) {
   float targetDistance = 0.0;
 
   // adjust to change how far it moves
-  unsigned long maxTime = 9000; 
+  unsigned long maxTime = 150; //for testing, normal operation is 9000 
   float estimatedSpeed = 0.01;
   unsigned long startTimeDistance = millis();
   
@@ -173,8 +173,12 @@ void bluetoothTask(void *pvParameters) {
       } else if (command == "ping") {
         // confirms connection and prints out the offsets
         SerialBT.println("Pong");
+      } else if (command == "calc_offsets") {
+        calculateInitialOffset();      
         SerialBT.println("CAN: right offset: " + String(initialOffsetR));
         SerialBT.println("CAN: left offset: " + String(initialOffsetL));
+        delay(1000);
+        offsetsCalculated = true;
       }
     }
     // runs roughly every 100 ms
@@ -345,7 +349,7 @@ void driveToCanTask(void *pvParameters) {
   for (;;) {
     // sets the drive forward time as a function of the distance from the can
     intervalTime =  (((int)currentCanDistance) * timeMultiplier) + timeOffset;
-
+    SerialBT.println("CAN: Interval time to drive towards can: " + String(intervalTime));
     // relates the angle of the ultrasound servo to the angle of the steering servo
     // 1500 is taken as the neutral angle for the ultrasound servo (this was never actuall tested to be exactly correct)
     steeringAngle = neutralPos - ((1500 - canAngle)*servoRelation);
@@ -363,6 +367,7 @@ void driveToCanTask(void *pvParameters) {
     while (RUN && ((millis() - startIntervalTime) < intervalTime)) {
       vTaskDelay(pdMS_TO_TICKS(10));
     }
+
     stop_motors();
     vTaskResume(locateCanTaskHandle);
     // suspends self
@@ -402,8 +407,8 @@ void setup() {
   motorStartupSequence();
   delay(5000);
 
-  calculateInitialOffset();
-  delay(1000);
+  // calculateInitialOffset();
+  // delay(1000);
 
   // create tasks //
   // Create ultrasound task
