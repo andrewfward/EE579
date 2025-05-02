@@ -16,6 +16,9 @@ Servo servoUltrasound;
 // -------------------- Bluetooth --------------------
 BluetoothSerial SerialBT;
 
+// -------------- Check if offsets have been calculated --------------
+bool offsetsCalculated = false;
+
 // -------------------- Servo Parameters --------------------
 /*
 int minUs = 1200;
