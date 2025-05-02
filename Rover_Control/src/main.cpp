@@ -4,7 +4,7 @@
 
 // Function declarations
 void calculateInitialOffset();
-float ultrasonicSensor(int trigPin);
+int ultrasonicSensor(int trigPin);
 
 // Interrupts for each ultrasound sensor
 void IRAM_ATTR echoL() { 
@@ -95,8 +95,8 @@ void ultrasoundTask(void *pvParameters) {
 }
 
 // Function to read an ultrasonic sensor, selected using the corresponding trigPin
-float ultrasonicSensor(int trigPin) {
-  float distance = 0.0;
+int ultrasonicSensor(int trigPin) {
+  int distance = 0;
   digitalWrite(trigPin, LOW);
   delayMicroseconds(2);
   digitalWrite(trigPin, HIGH);
@@ -104,18 +104,23 @@ float ultrasonicSensor(int trigPin) {
   digitalWrite(trigPin, LOW);
   vTaskDelay(pdMS_TO_TICKS(55));
   
+  while(!receivedL && !receivedR && !receivedF) {
+    vTaskDelay(pdMS_TO_TICKS(5));
+  }
+  
   if ((trigPin == trigPinL) && receivedL) {
-    distance = (endTimeL - startTimeL) / 58;
+    distance = int((endTimeL - startTimeL) / 58);
     receivedL = false;
   }
   else if ((trigPin == trigPinR) && receivedR) {
-    distance = (endTimeR - startTimeR) / 58;
+    distance = int((endTimeR - startTimeR) / 58);
     receivedR = false;
   }
   else if ((trigPin == trigPinF) && receivedF) {
-    distance = (endTimeF - startTimeF) / 58;
+    distance = int((endTimeF - startTimeF) / 58);
     receivedF = false;
-  } else
+  }
+  else
   {
     SerialBT.println("CAN: ERROR - Invalid Ultrasonic Sensor State");
   }
@@ -123,63 +128,6 @@ float ultrasonicSensor(int trigPin) {
   vTaskDelay(pdMS_TO_TICKS(5));
   if (distance > 450) {distance = 450;}
   return distance;
-}
-
-
-// Task to get the distances from the left and right ultrasonic sensors
-void checkLRSensors(void *pvParameters) {
-  int distanceL = 0;
-  int distanceR = 0;
-
-  // when false use left sensor when true use right 
-  // this is to avoid them triggering each other
-  bool toggleSensor = false;
-
-  // logic to trigger the ultrasound sensors (based off datasheet)
-  // uses the interrupts at the top
-  if (toggleSensor == false) {
-    digitalWrite(trigPinL, LOW);
-    delayMicroseconds(2);
-    digitalWrite(trigPinL, HIGH);
-    delayMicroseconds(10);
-    digitalWrite(trigPinL, LOW);
-    vTaskDelay(pdMS_TO_TICKS(55));
-    if (receivedL) {
-      distanceL = (endTimeL - startTimeL) / 58;
-      if (distanceL > 450) {
-        distanceL = 450;
-      }
-      receivedL = false;
-    }
-
-  } else {
-    digitalWrite(trigPinR, LOW);
-    delayMicroseconds(2);
-    digitalWrite(trigPinR, HIGH);
-    delayMicroseconds(10);
-    digitalWrite(trigPinR, LOW);
-
-    // delay to wait for interupts to pick up the return signal 
-    // if this is chnaged also need to chnage timeStep to match
-    vTaskDelay(pdMS_TO_TICKS(60));
-    if (receivedR) {
-      distanceR = (endTimeR - startTimeR) / 58;
-      if (distanceR > 450) {distanceR = 450;
-      }
-      receivedR = false;
-    }
-  }
-    
-  toggleSensor = !toggleSensor;
-
-  // logs the left and right distances, and the steering value and position
-  String logEntry = String(distanceL) + "," + String(distanceR);
-  SerialBT.println("Left & Right Distance: "+ logEntry);
-
-  if (RUN == false || moving == false) {
-    vTaskSuspend(NULL);
-  }
-  vTaskDelay(pdMS_TO_TICKS(5));
 }
 
 // task to move to the general area of the can 
@@ -376,80 +324,6 @@ void locateCanTask(void *pvParameters) {
     }
     // suspend self
     vTaskSuspend(NULL);
-  }
-}
-
-void locateCanTaskV2(void *pvParameters) {
-  bool canFound = false;
-  const int step = 40;           
-  int distanceF = 0;
-  const int tolerance = 5;
-  const int minSequence = 5;
-  const int maxMismatches = 1;      // allowed mismatches in the sequence
-
-  // structure to store can values
-  struct scanValues {
-    int angle;
-    int distance;
-  };
-
-  scanValues scanData[31]; // store 61 values
-  // outer for loop exists so that task can be resumed
-  for (;;) {
-    int count = 0;
-    canFound = false;
-    currentCanDistance = 400.0;
-
-    // sweeps the servo through 32 points
-    // and takes an ultraound reading at each point
-    for (int angle = minUsUltra; angle <= maxUsUltra; angle += step) {
-      servoUltrasound.writeMicroseconds(angle);
-      vTaskDelay(pdMS_TO_TICKS(300));
-
-      digitalWrite(trigPinF, LOW);
-      delayMicroseconds(2);
-  
-      digitalWrite(trigPinF, HIGH);
-      delayMicroseconds(10);
-      digitalWrite(trigPinF, LOW);
-  
-      vTaskDelay(pdMS_TO_TICKS(80));
-
-      if (receivedF) {
-        distanceF = (endTimeF - startTimeF) / 58;
-        if (abs(distanceF) > 450) {
-          distanceF = 450;
-        }
-        receivedF = false;
-      }
-
-      scanData[count] = {angle, distanceF};
-
-      // prints out the angle and distance to the GUI
-      SerialBT.println(String(angle) + "," + String(distanceF));
-      count++;
-
-      if (!RUN) {
-        vTaskSuspend(NULL);
-      }
-    }
-
-    int midIdx = -1;
-    // analyse data to find can
-    for (int start = 0; start < count - minSequence; start++) {
-      int refDist = scanData[start].distance;
-      int length = 1;
-      int mismatches = 0;
-      for (int i = start + 1; i < count; i++) {
-        if (abs(scanData[i].distance - refDist) <= tolerance) {
-          length++;
-        } else if (mismatches < maxMismatches){
-          mismatches++;
-        } else {
-          break;
-        }
-      }
-    }
   }
 }
 
