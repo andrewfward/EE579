@@ -198,7 +198,7 @@ void bluetoothTask(void *pvParameters) {
 }
 
 
-// loacte Can task
+// locate Can task
 void locateCanTask(void *pvParameters) {
   bool canFound = false;
   const int step = 40;           
@@ -294,7 +294,7 @@ void locateCanTask(void *pvParameters) {
         bool beforeHigher = (beforeIdx >= 0 && averageAfter > refDist + (tolerance));
         bool afterHigher = (afterIdx < count && averageBefore > refDist + (tolerance));
 
-        // if it is a valid potentual can 
+        // if it is a valid potential can 
         if (beforeHigher || afterHigher) {
           canFound = true;
           float distanceSum = 0;
@@ -317,13 +317,19 @@ void locateCanTask(void *pvParameters) {
     }
 
     if (canFound == false) {
-      SerialBT.println("CAN: no can found");
-      // add logic for failure to find can
-    } else {
+      SerialBT.println("CAN: Can not found, trying again...");
+      // We assume it's still too far away from the can. So: go forward a little and try again.
+      currentCanDistance = currentCanDistance/2;
+      vTaskResume(driveToCanTaskHandle);
+    } 
+    else {
       SerialBT.println("CAN: Can Detected at angle: " + String(canAngle));
       if (currentCanDistance < 8.50) {
         SerialBT.println("CAN: Arrived at can");
-      } else {
+        delay(5000);
+        vTaskResume(returnHomeTaskHandle);
+      } 
+      else {
         vTaskResume(driveToCanTaskHandle);
       }
     }
@@ -371,6 +377,23 @@ void driveToCanTask(void *pvParameters) {
     vTaskSuspend(NULL);
   }
 }
+
+
+void returnHomeTask(void *pvParameters){
+  unsigned long startReturnTime;
+  unsigned long maxReturnTime = 9000;
+  startReturnTime = millis();
+  set_direction(BACKWARDS);
+  moving = true;
+  while(millis()-startReturnTime < maxReturnTime){
+    vTaskDelay(pdMS_TO_TICKS(10));
+  }
+
+  stop_motors();
+  moving = false;
+  vTaskSuspend(NULL);
+}
+
 
 void setup() {
 
@@ -466,6 +489,17 @@ void setup() {
     1
   );
   vTaskSuspend(driveToCanTaskHandle);
+
+  xTaskCreatePinnedToCore(
+    returnHomeTask,
+    "Return to start point after picking up coin",
+    4000,
+    NULL,
+    1,
+    &returnHomeTaskHandle,
+    1
+  );
+  vTaskSuspend(returnHomeTaskHandle);
 
   delay(1000);
 }
