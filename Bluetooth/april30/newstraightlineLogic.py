@@ -48,7 +48,7 @@ def process_sensor_data(csv_file_path, initialOffsetL, initialOffsetR):
     plt.show()
 
 # ===== USER INPUTS HERE =====
-csv_file_path = "Bluetooth/april30/test9_foundCan.csv"  # Replace with your file path
+csv_file_path = "Bluetooth/may6/test1.csv"  # Replace with your file path
 initialOffsetL = int(input("Enter initial offset for LEFT sensor (cm): "))
 initialOffsetR = int(input("Enter initial offset for RIGHT sensor (cm): "))
 
