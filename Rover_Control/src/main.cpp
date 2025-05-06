@@ -69,7 +69,7 @@ void ultrasoundTask(void *pvParameters) {
     loopCount++;
     // logic to trigger the ultrasound sensors (bassed off datasheet)
     // uses the interrupts at the top
-    if ((toggleSensor == false) && (offsetsCalculated == true)) {
+    if (toggleSensor == false) {
       digitalWrite(trigPinL, LOW);
       delayMicroseconds(2);
       digitalWrite(trigPinL, HIGH);
@@ -90,7 +90,7 @@ void ultrasoundTask(void *pvParameters) {
         initialOffsetL += deltaL;
       }
       // calculates each offset because at one point I was seperatly handling the left and right sensors 
-      // rather than combining then like it does now (functioanlly this is no different)
+      // rather than combining then like it does now (functionally this is no different)
       posL = distanceL - initialOffsetL;
     } else {
       digitalWrite(trigPinR, LOW);
@@ -99,7 +99,7 @@ void ultrasoundTask(void *pvParameters) {
       delayMicroseconds(10);
       digitalWrite(trigPinR, LOW);
 
-      // delay to wait for interupts to pick up the return signal 
+      // delay to wait for interupts to pick up the return signal
       // if this is chnaged also need to chnage timeStep to match
       vTaskDelay(pdMS_TO_TICKS(60));
       if (receivedR) {
@@ -182,7 +182,7 @@ void bluetoothTask(void *pvParameters) {
     if (SerialBT.available()) {
       String command = SerialBT.readStringUntil('\n');
       command.trim();
-      if (command == "start") {
+      if ((command == "start") && offsetsCalculated) {
         SerialBT.println("Start Command Received");
         RUN = true;
         // makes sure the task doesnt start again while it is aleady moving
@@ -213,7 +213,7 @@ void bluetoothTask(void *pvParameters) {
 }
 
 
-// loacte Can task
+// locate Can task
 void locateCanTask(void *pvParameters) {
   bool canFound = false;
   const int step = 40;           
@@ -379,7 +379,6 @@ void driveToCanTask(void *pvParameters) {
     intervalTime =  (((int)currentCanDistance) * timeMultiplier) + timeOffset;
     SerialBT.println("CAN: Interval time to drive towards can: " + String(intervalTime));
     // relates the angle of the ultrasound servo to the angle of the steering servo
-    // 1500 is taken as the neutral angle for the ultrasound servo (this was never actuall tested to be exactly correct)
     steeringAngle = neutralPos - ((1500 - canAngle)*servoRelation);
 
     // sets bounds on the maximum steering angle
@@ -406,11 +405,14 @@ void driveToCanTask(void *pvParameters) {
 
 void returnHomeTask(void *pvParameters){
   unsigned long startReturnTime;
-  unsigned long maxReturnTime = 9000;
-  startReturnTime = millis();
+  unsigned long maxReturnTime = 1000; // 9000;
+  // this was guessed and can be adjusted as required
+  const float servoMultiplier = 0.5;
+
   set_direction(BACKWARDS);
   moving = true;
-  while(millis()-startReturnTime < maxReturnTime){
+
+  while(RUN && (millis()-startReturnTime < maxReturnTime)){
     vTaskDelay(pdMS_TO_TICKS(10));
   }
 
