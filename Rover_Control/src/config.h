@@ -96,5 +96,6 @@ extern TaskHandle_t moveToAreaTaskHandle;
 extern TaskHandle_t bluetoothTaskHandle;
 extern TaskHandle_t locateCanTaskHandle;
 extern TaskHandle_t driveToCanTaskHandle;
+extern TaskHandle_t returnHomeTaskHandle;
 
 #endif  // CONFIG_H

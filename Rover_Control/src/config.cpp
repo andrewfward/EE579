@@ -84,3 +84,4 @@ TaskHandle_t moveToAreaTaskHandle = NULL;
 TaskHandle_t bluetoothTaskHandle = NULL;
 TaskHandle_t locateCanTaskHandle = NULL;
 TaskHandle_t driveToCanTaskHandle = NULL;
+TaskHandle_t returnHomeTaskHandle = NULL;

@@ -352,6 +352,8 @@ void locateCanTask(void *pvParameters) {
       SerialBT.println("CAN: Can Detected at angle: " + String(canAngle));
       if (currentCanDistance < 10.0) {
         SerialBT.println("CAN: Arrived at can");
+        delay(5000);
+        vTaskResume(returnHomeTaskHandle);
       } else {
         vTaskResume(driveToCanTaskHandle);
       }
@@ -400,6 +402,23 @@ void driveToCanTask(void *pvParameters) {
     vTaskSuspend(NULL);
   }
 }
+
+
+void returnHomeTask(void *pvParameters){
+  unsigned long startReturnTime;
+  unsigned long maxReturnTime = 9000;
+  startReturnTime = millis();
+  set_direction(BACKWARDS);
+  moving = true;
+  while(millis()-startReturnTime < maxReturnTime){
+    vTaskDelay(pdMS_TO_TICKS(10));
+  }
+
+  stop_motors();
+  moving = false;
+  vTaskSuspend(NULL);
+}
+
 
 void setup() {
 
@@ -495,6 +514,17 @@ void setup() {
     1
   );
   vTaskSuspend(driveToCanTaskHandle);
+  
+  xTaskCreatePinnedToCore(
+    returnHomeTask,
+    "Return to start point after picking up coin",
+    4000,
+    NULL,
+    1,
+    &returnHomeTaskHandle,
+    1
+  );
+  vTaskSuspend(returnHomeTaskHandle);
 
   delay(1000);
 }
