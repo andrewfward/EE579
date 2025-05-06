@@ -37,10 +37,11 @@ void IRAM_ATTR echoF() {
 void ultrasoundTask(void *pvParameters) {
   float prevPos = 0;
   float newPos = 0;
-  int distanceL = 0;
-  int distanceR = 0;
+  int distanceL = initialOffsetL;
+  int distanceR = initialOffsetR;
   int prevDistanceR = 0;
   int prevDistanceL = 0;
+  int maxChange = 5;
 
   // controller gains
   float Kp = 0.2;
@@ -55,6 +56,8 @@ void ultrasoundTask(void *pvParameters) {
   bool toggleSensor = false;
 
   for (;;) {
+    int lastL = initialOffsetL;
+    int lastR = initialOffsetR;
     // logic to trigger the ultrasound sensors (bassed off datasheet)
     // uses the interrupts at the top
     if ((toggleSensor == false) && (offsetsCalculated == true)) {
@@ -70,6 +73,12 @@ void ultrasoundTask(void *pvParameters) {
           distanceL = 450;
         }
         receivedL = false;
+      }
+
+      // adjusts offset if a large change is detected
+      if (abs(distanceL - lastL) > maxChange) {
+        int deltaL = distanceL - lastL;
+        initialOffsetL += deltaL;
       }
       // calculates each offset because at one point I was seperatly handling the left and right sensors 
       // rather than combining then like it does now (functioanlly this is no different)
@@ -90,8 +99,16 @@ void ultrasoundTask(void *pvParameters) {
         }
         receivedR = false;
       }
+      // adjusts offset if a large change is detected
+      if (abs(distanceR - lastR) > maxChange) {
+        int deltaR = distanceR - lastR;
+        initialOffsetR += deltaR;
+      }
       posR = distanceR - initialOffsetR;
     }
+
+    lastL = distanceL;
+    lastR = distanceR;
 
     toggleSensor = !toggleSensor;
 
