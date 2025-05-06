@@ -55,9 +55,18 @@ void ultrasoundTask(void *pvParameters) {
   // this is to avoid them triggering each other
   bool toggleSensor = false;
 
+  int lastL;
+  int lastR; 
+
+  int loopCount = 0;
+
   for (;;) {
-    int lastL = initialOffsetL;
-    int lastR = initialOffsetR;
+
+    if (loopCount == 0) {
+      lastL = initialOffsetL;
+      lastR = initialOffsetR;
+    }
+    loopCount++;
     // logic to trigger the ultrasound sensors (bassed off datasheet)
     // uses the interrupts at the top
     if (toggleSensor == false) {
