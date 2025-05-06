@@ -59,7 +59,20 @@ void ultrasoundTask(void *pvParameters) {
     // logic to trigger the ultrasound sensors (bassed off datasheet)
     // uses the interrupts at the top
     if ((toggleSensor == false) && (offsetsCalculated == true)) {
-      distanceL = ultrasonicSensor(trigPinL);
+      // distanceL = ultrasonicSensor(trigPinL);
+      digitalWrite(trigPinL, LOW);
+      delayMicroseconds(2);
+      digitalWrite(trigPinL, HIGH);
+      delayMicroseconds(10);
+      digitalWrite(trigPinL, LOW);
+      vTaskDelay(pdMS_TO_TICKS(55));
+      if (receivedL) {
+        distanceL = (endTimeL - startTimeL) / 58;
+        if (distanceL > 450) {
+          distanceL = 450;
+        }
+        receivedL = false;
+      }
       // calculates each offset because at one point I was seperatly handling the left and right sensors 
       // rather than combining then like it does now (functioanlly this is no different)
       posL = distanceL - initialOffsetL;
@@ -137,7 +150,7 @@ void moveToAreaTask(void *pvParameters) {
   float targetDistance = 0.0;
 
   // adjust to change how far it moves
-  unsigned long maxTime = 150; //for testing, normal operation is 9000 
+  unsigned long maxTime = 9000; //for testing, normal operation is 9000 
   float estimatedSpeed = 0.01;
   unsigned long startTimeDistance = millis();
   
@@ -319,9 +332,10 @@ void locateCanTask(void *pvParameters) {
     if (canFound == false) {
       SerialBT.println("CAN: Can not found, trying again...");
       // We assume it's still too far away from the can. So: go forward a little and try again.
-      currentCanDistance = currentCanDistance/2;
-      vTaskResume(driveToCanTaskHandle);
-    } 
+      // currentCanDistance = 100;
+      // servoSteering.writeMicroseconds(1450);
+      // vTaskResume(driveToCanTaskHandle); // remove for now...
+    }
     else {
       SerialBT.println("CAN: Can Detected at angle: " + String(canAngle));
       if (currentCanDistance < 8.50) {
@@ -509,6 +523,34 @@ void loop() {
 }
 
 void calculateInitialOffset() {
-  initialOffsetL = ultrasonicSensor(trigPinL);
-  initialOffsetR = ultrasonicSensor(trigPinR);
+  // initialOffsetL = ultrasonicSensor(trigPinL);
+  // initialOffsetR = ultrasonicSensor(trigPinR);
+
+  int distanceL = 0;
+  int distanceR = 0;
+  digitalWrite(trigPinL, LOW);
+  delayMicroseconds(2);
+
+  digitalWrite(trigPinL, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPinL, LOW);
+  
+  delay(60);
+
+  if (receivedL) {
+    initialOffsetL = (endTimeL - startTimeL) / 58;
+    receivedL = false;
+  }
+
+  digitalWrite(trigPinR, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trigPinR, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPinR, LOW);
+  delay(60);
+
+  if (receivedR) {
+    initialOffsetR = (endTimeR - startTimeR) / 58;
+    receivedR = false;
+  }
 }
