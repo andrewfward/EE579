@@ -1,5 +1,6 @@
 #include "esc_pwm.h"
 #include "config.h"
+#include "ultrasonic.h"
 #include <cmath> // For abs() in C++
 #include "main.h"
 
@@ -72,19 +73,7 @@ void ultrasoundTask(void *pvParameters) {
     // logic to trigger the ultrasound sensors (bassed off datasheet)
     // uses the interrupts at the top
     if (toggleSensor == false) {
-      digitalWrite(trigPinL, LOW);
-      delayMicroseconds(2);
-      digitalWrite(trigPinL, HIGH);
-      delayMicroseconds(10);
-      digitalWrite(trigPinL, LOW);
-      vTaskDelay(pdMS_TO_TICKS(55));
-      if (receivedL) {
-        distanceL = (endTimeL - startTimeL) / 58;
-        if (distanceL > 450) {
-          distanceL = 450;
-        }
-        receivedL = false;
-      }
+      distanceL = getUltrasoundValue(trigPinL);
 
       // adjusts offset if a large change is detected
       if (abs(distanceL - lastL) > maxChange) {
@@ -95,21 +84,7 @@ void ultrasoundTask(void *pvParameters) {
       // rather than combining then like it does now (functionally this is no different)
       posL = distanceL - initialOffsetL;
     } else {
-      digitalWrite(trigPinR, LOW);
-      delayMicroseconds(2);
-      digitalWrite(trigPinR, HIGH);
-      delayMicroseconds(10);
-      digitalWrite(trigPinR, LOW);
-
-      // delay to wait for interupts to pick up the return signal
-      // if this is chnaged also need to chnage timeStep to match
-      vTaskDelay(pdMS_TO_TICKS(60));
-      if (receivedR) {
-        distanceR = (endTimeR - startTimeR) / 58;
-        if (distanceR > 450) {distanceR = 450;
-        }
-        receivedR = false;
-      }
+      distanceR = getUltrasoundValue(trigPinR);
       // adjusts offset if a large change is detected
       if (abs(distanceR - lastR) > maxChange) {
         int deltaR = distanceR - lastR;
@@ -254,22 +229,7 @@ void locateCanTask(void *pvParameters) {
       servoUltrasound.writeMicroseconds(angle);
       vTaskDelay(pdMS_TO_TICKS(300));
 
-      digitalWrite(trigPinF, LOW);
-      delayMicroseconds(2);
-  
-      digitalWrite(trigPinF, HIGH);
-      delayMicroseconds(10);
-      digitalWrite(trigPinF, LOW);
-  
-      vTaskDelay(pdMS_TO_TICKS(80));
-
-      if (receivedF) {
-        distanceF = (endTimeF - startTimeF) / 58;
-        if (abs(distanceF) > 450) {
-          distanceF = 450;
-        }
-        receivedF = false;
-      }
+      distanceF = getUltrasoundValue(trigPinF);
 
       scanData[count] = {angle, distanceF};
 
@@ -365,7 +325,7 @@ void locateCanTask(void *pvParameters) {
       int startSearchTime = millis();
 
       while(millis()-startSearchTime<maxSearchIncrement){
-        vTaskResume(moveToAreaTaskHandle);
+        vTaskResume(moveToAreaTaskHandle);   // this will need changed (just putting this as a reminder for myself)
       }
       vTaskSuspend(moveToAreaTaskHandle);
     } else {
@@ -553,69 +513,4 @@ void setup() {
 
 void loop() {
   // Nothing needed here
-}
-
-void calculateInitialOffset(void) {
-  int distanceL = 0;
-  int distanceR = 0;
-  digitalWrite(trigPinL, LOW);
-  delayMicroseconds(2);
-
-  digitalWrite(trigPinL, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(trigPinL, LOW);
-  
-  delay(60);
-
-  if (receivedL) {
-    initialOffsetL = (endTimeL - startTimeL) / 58;
-    receivedL = false;
-  }
-
-  digitalWrite(trigPinR, LOW);
-  delayMicroseconds(2);
-  digitalWrite(trigPinR, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(trigPinR, LOW);
-  delay(60);
-
-  if (receivedR) {
-    initialOffsetR = (endTimeR - startTimeR) / 58;
-    receivedR = false;
-  }
-}
-
-void setOffsetBasedOnOneSide(bool side) {
-  if (side == LEFT){
-    SerialBT.println("CAN:Calculating based on LHS...");
-    digitalWrite(trigPinL, LOW);
-    delayMicroseconds(2);
-    digitalWrite(trigPinL, HIGH);
-    delayMicroseconds(10);
-    digitalWrite(trigPinL, LOW);
-    
-    delay(60);
-
-    if (receivedL) {
-      initialOffsetL = (endTimeL - startTimeL) / 58;
-      initialOffsetR = 300 - initialOffsetL; //estimating the width of the corridor minus the width of the car 
-      receivedL = false;
-    }
-  } 
-  else {
-    SerialBT.println("CAN:Calculating based on RHS...");
-    digitalWrite(trigPinR, LOW);
-    delayMicroseconds(2);
-    digitalWrite(trigPinR, HIGH);
-    delayMicroseconds(10);
-    digitalWrite(trigPinR, LOW);
-    
-    delay(60);
-
-    if (receivedR) {
-      initialOffsetR = (endTimeR - startTimeR) / 58;
-      initialOffsetL = 300 - initialOffsetR; //estimating the width of the corridor minus the width of the car 
-      receivedR = false;
-    }
-  }
 }
