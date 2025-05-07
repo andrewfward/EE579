@@ -1,9 +1,11 @@
 #include "esc_pwm.h"
 #include "config.h"
 #include <cmath> // For abs() in C++
+#include "main.h"
 
 // Function declarations
-void calculateInitialOffset();
+void calculateInitialOffset(void);
+void setOffsetBasedOnOneSide(bool);
 
 // Interrupts for each ultrasound sensor
 void IRAM_ATTR echoL() { 
@@ -207,6 +209,15 @@ void bluetoothTask(void *pvParameters) {
         SerialBT.println("CAN: left offset: " + String(initialOffsetL));
         delay(1000);
         offsetsCalculated = true;
+      } else if (command == "LHS") {
+        setOffsetBasedOnOneSide(LEFT);
+        SerialBT.println("CAN: right offset: " + String(initialOffsetR));
+        SerialBT.println("CAN: left offset: " + String(initialOffsetL));
+
+      } else if (command == "RHS") {
+        setOffsetBasedOnOneSide(RIGHT);
+        SerialBT.println("CAN: right offset: " + String(initialOffsetR));
+        SerialBT.println("CAN: left offset: " + String(initialOffsetL));
       }
     }
     // runs roughly every 100 ms
@@ -544,7 +555,7 @@ void loop() {
   // Nothing needed here
 }
 
-void calculateInitialOffset() {
+void calculateInitialOffset(void) {
   int distanceL = 0;
   int distanceR = 0;
   digitalWrite(trigPinL, LOW);
@@ -571,5 +582,40 @@ void calculateInitialOffset() {
   if (receivedR) {
     initialOffsetR = (endTimeR - startTimeR) / 58;
     receivedR = false;
+  }
+}
+
+void setOffsetBasedOnOneSide(bool side) {
+  if (side == LEFT){
+    SerialBT.println("CAN:Calculating based on LHS...");
+    digitalWrite(trigPinL, LOW);
+    delayMicroseconds(2);
+    digitalWrite(trigPinL, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(trigPinL, LOW);
+    
+    delay(60);
+
+    if (receivedL) {
+      initialOffsetL = (endTimeL - startTimeL) / 58;
+      initialOffsetR = 300 - initialOffsetL; //estimating the width of the corridor minus the width of the car 
+      receivedL = false;
+    }
+  } 
+  else {
+    SerialBT.println("CAN:Calculating based on RHS...");
+    digitalWrite(trigPinR, LOW);
+    delayMicroseconds(2);
+    digitalWrite(trigPinR, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(trigPinR, LOW);
+    
+    delay(60);
+
+    if (receivedR) {
+      initialOffsetR = (endTimeR - startTimeR) / 58;
+      initialOffsetL = 300 - initialOffsetR; //estimating the width of the corridor minus the width of the car 
+      receivedR = false;
+    }
   }
 }

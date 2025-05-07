@@ -1,4 +1,5 @@
 import tkinter as tk
+from tkinter import ttk
 from tkinter import filedialog
 import serial
 import threading
@@ -32,11 +33,23 @@ class RoverControlApp:
         self.stop_button.grid(row=0, column=1, padx=5)
         self.save_button = tk.Button(self.control_frame, text="Save Log", command=self.save_log, state='disabled')
         self.save_button.grid(row=0, column=2, padx=5)
-        self.offsets_button = tk.Button(self.control_frame, text="Calculate Offsets", command=self.calc_offsets, state='disabled')
-        self.offsets_button.grid(row=0, column=3, padx=5)
+        
+        self.offsets_frame = tk.Frame(root)
+        self.offsets_frame.pack()
+        
+        self.sidevariable = tk.StringVar(root, '1')
+
+        self.offsets_button = tk.Button(self.offsets_frame, text="Two-sided Offsets", command=self.calc_offsets, state='disabled')
+        self.offsets_button.grid(row=0, column=0, padx=5, pady=5)
+        self.onesided_offsets_button = tk.Button(self.offsets_frame, text="One-sided Offsets", command=self.unlock_radio_buttons, state='disabled')
+        self.onesided_offsets_button.grid(row=0, column=1, columnspan=2, padx=5, pady=5)
+        self.leftside_checkbox = tk.Button(self.offsets_frame, text="Left Side", command=self.select_side_left, state='disabled')
+        self.leftside_checkbox.grid(row=1,column=1,padx=5, pady=5)
+        self.rightside_checkbox = tk.Button(self.offsets_frame, text="Right Side", command=self.select_side_right, state='disabled')
+        self.rightside_checkbox.grid(row=1,column=2,padx=5, pady=5)
 
         self.log_frame = tk.Frame(root)
-        self.log_frame.pack()
+        self.log_frame.pack(pady=10)
 
         self.text_log = tk.Text(self.log_frame, height=20, width=60)
         self.text_log.pack()
@@ -49,6 +62,8 @@ class RoverControlApp:
             self.stop_button.config(state='normal')
             self.save_button.config(state='normal')
             self.offsets_button.config(state='normal')
+            self.onesided_offsets_button.config(state='normal')
+
             self.running = True
             threading.Thread(target=self.read_serial, daemon=True).start()
 
@@ -124,6 +139,8 @@ class RoverControlApp:
 
     def calc_offsets(self):
         self.serial_port.write(b'calc_offsets\n')
+        self.leftside_checkbox.config(state='disabled')
+        self.rightside_checkbox.config(state='disabled')
 
 
     def on_closing(self):
@@ -131,6 +148,21 @@ class RoverControlApp:
         if self.serial_port and self.serial_port.is_open:
             self.serial_port.close()
         self.root.destroy()
+
+
+    def unlock_radio_buttons(self):
+        self.leftside_checkbox.config(state='normal')
+        self.rightside_checkbox.config(state='normal')
+
+    def select_side_left(self):
+        if self.serial_port and self.serial_port.is_open:
+            self.text_log.insert(tk.END, "Calculating offsets based on LHS\n")
+            self.serial_port.write(b'LHS\n')
+
+    def select_side_right(self):
+        if self.serial_port and self.serial_port.is_open:
+            self.text_log.insert(tk.END, "Calculating offsets based on RHS\n")
+            self.serial_port.write(b'RHS\n')
 
 if __name__ == "__main__":
     root = tk.Tk()
