@@ -15,14 +15,26 @@ class RoverControlApp:
         self.running = False
         self.data_log = []
 
+        self.voltage_var = 4.9
+
         self.connect_frame = tk.Frame(root)
-        self.connect_frame.pack(pady=10)
+        self.connect_frame.pack(pady=5)
 
         tk.Label(self.connect_frame, text="Bluetooth COM Port:").grid(row=0, column=0)
         self.port_entry = tk.Entry(self.connect_frame)
         self.port_entry.grid(row=0, column=1)
         self.connect_button = tk.Button(self.connect_frame, text="Connect", command=self.connect)
         self.connect_button.grid(row=0, column=2)
+
+        self.voltage_frame = tk.Frame(root)
+        self.voltage_frame.pack(pady=5)
+
+        self.voltage_label = tk.Label(self.voltage_frame, text = 'Voltage')
+        self.voltage_label.grid(row=0,column=0)
+        self.voltage_entry = tk.Entry(self.voltage_frame, textvariable=self.voltage_var)
+        self.voltage_entry.grid(row=0,column=1)
+        self.submit_button = tk.Button(self.voltage_frame, text="Enter", command=self.submit_voltage)
+        self.submit_button.grid(row=0,column=3)
 
         self.control_frame = tk.Frame(root)
         self.control_frame.pack(pady=10)
@@ -163,6 +175,9 @@ class RoverControlApp:
         if self.serial_port and self.serial_port.is_open:
             self.text_log.insert(tk.END, "Calculating offsets based on RHS\n")
             self.serial_port.write(b'RHS\n')
+
+    def submit_voltage(self):
+        pass
 
 if __name__ == "__main__":
     root = tk.Tk()
