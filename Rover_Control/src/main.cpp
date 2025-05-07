@@ -152,7 +152,7 @@ void moveToAreaTask(void *pvParameters) {
   float targetDistance = 0.0;
 
   // adjust to change how far it moves
-  unsigned long maxTime = 150; //for testing, normal operation is 9000 
+  unsigned long maxTime = 9000; //for testing, normal operation is 9000 
   float estimatedSpeed = 0.01;
   unsigned long startTimeDistance = millis();
   
@@ -348,6 +348,13 @@ void locateCanTask(void *pvParameters) {
     if (canFound == false) {
       SerialBT.println("CAN: no can found");
       // add logic for failure to find can
+      int maxSearchIncrement = 1000;
+      int startSearchTime = millis();
+
+      while(millis()-startSearchTime<maxSearchIncrement){
+        vTaskResume(moveToAreaTaskHandle);
+      }
+      vTaskSuspend(moveToAreaTaskHandle);
     } else {
       SerialBT.println("CAN: Can Detected at angle: " + String(canAngle));
       if (currentCanDistance < 10.0) {
