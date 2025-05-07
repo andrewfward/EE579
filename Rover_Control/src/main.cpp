@@ -399,7 +399,7 @@ void driveToCanTask(void *pvParameters) {
     intervalTime =  (((int)currentCanDistance) * timeMultiplier) + timeOffset;
     SerialBT.println("CAN: Interval time to drive towards can: " + String(intervalTime));
     // relates the angle of the ultrasound servo to the angle of the steering servo
-    steeringAngle = neutralPos - ((1500 - canAngle)*servoRelation);
+    steeringAngle = neutralPos - ((1570 - canAngle)*servoRelation);
 
     // sets bounds on the maximum steering angle
     if (steeringAngle > maxUsSteer) steeringAngle = maxUsSteer;
