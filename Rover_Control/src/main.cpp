@@ -69,7 +69,7 @@ void ultrasoundTask(void *pvParameters) {
     loopCount++;
     // logic to trigger the ultrasound sensors (bassed off datasheet)
     // uses the interrupts at the top
-    if ((toggleSensor == false) && (offsetsCalculated == true)) {
+    if (toggleSensor == false) {
       digitalWrite(trigPinL, LOW);
       delayMicroseconds(2);
       digitalWrite(trigPinL, HIGH);
@@ -90,7 +90,7 @@ void ultrasoundTask(void *pvParameters) {
         initialOffsetL += deltaL;
       }
       // calculates each offset because at one point I was seperatly handling the left and right sensors 
-      // rather than combining then like it does now (functioanlly this is no different)
+      // rather than combining then like it does now (functionally this is no different)
       posL = distanceL - initialOffsetL;
     } else {
       digitalWrite(trigPinR, LOW);
@@ -99,7 +99,7 @@ void ultrasoundTask(void *pvParameters) {
       delayMicroseconds(10);
       digitalWrite(trigPinR, LOW);
 
-      // delay to wait for interupts to pick up the return signal 
+      // delay to wait for interupts to pick up the return signal
       // if this is chnaged also need to chnage timeStep to match
       vTaskDelay(pdMS_TO_TICKS(60));
       if (receivedR) {
@@ -152,7 +152,7 @@ void moveToAreaTask(void *pvParameters) {
   float targetDistance = 0.0;
 
   // adjust to change how far it moves
-  unsigned long maxTime = 150; //for testing, normal operation is 9000 
+  unsigned long maxTime = 9000; //for testing, normal operation is 9000 
   float estimatedSpeed = 0.01;
   unsigned long startTimeDistance = millis();
   
@@ -182,7 +182,7 @@ void bluetoothTask(void *pvParameters) {
     if (SerialBT.available()) {
       String command = SerialBT.readStringUntil('\n');
       command.trim();
-      if (command == "start") {
+      if ((command == "start") && offsetsCalculated) {
         SerialBT.println("Start Command Received");
         RUN = true;
         // makes sure the task doesnt start again while it is aleady moving
@@ -213,7 +213,7 @@ void bluetoothTask(void *pvParameters) {
 }
 
 
-// loacte Can task
+// locate Can task
 void locateCanTask(void *pvParameters) {
   bool canFound = false;
   const int step = 40;           
@@ -348,10 +348,19 @@ void locateCanTask(void *pvParameters) {
     if (canFound == false) {
       SerialBT.println("CAN: no can found");
       // add logic for failure to find can
+      int maxSearchIncrement = 1000;
+      int startSearchTime = millis();
+
+      while(millis()-startSearchTime<maxSearchIncrement){
+        vTaskResume(moveToAreaTaskHandle);
+      }
+      vTaskSuspend(moveToAreaTaskHandle);
     } else {
       SerialBT.println("CAN: Can Detected at angle: " + String(canAngle));
       if (currentCanDistance < 10.0) {
         SerialBT.println("CAN: Arrived at can");
+        delay(5000);
+        vTaskResume(returnHomeTaskHandle);
       } else {
         vTaskResume(driveToCanTaskHandle);
       }
@@ -377,7 +386,6 @@ void driveToCanTask(void *pvParameters) {
     intervalTime =  (((int)currentCanDistance) * timeMultiplier) + timeOffset;
     SerialBT.println("CAN: Interval time to drive towards can: " + String(intervalTime));
     // relates the angle of the ultrasound servo to the angle of the steering servo
-    // 1500 is taken as the neutral angle for the ultrasound servo (this was never actuall tested to be exactly correct)
     steeringAngle = neutralPos - ((1500 - canAngle)*servoRelation);
 
     // sets bounds on the maximum steering angle
@@ -400,6 +408,26 @@ void driveToCanTask(void *pvParameters) {
     vTaskSuspend(NULL);
   }
 }
+
+
+void returnHomeTask(void *pvParameters){
+  unsigned long startReturnTime;
+  unsigned long maxReturnTime = 1000; // 9000;
+  // this was guessed and can be adjusted as required
+  const float servoMultiplier = 0.5;
+
+  set_direction(BACKWARDS);
+  moving = true;
+
+  while(RUN && (millis()-startReturnTime < maxReturnTime)){
+    vTaskDelay(pdMS_TO_TICKS(10));
+  }
+
+  stop_motors();
+  moving = false;
+  vTaskSuspend(NULL);
+}
+
 
 void setup() {
 
@@ -495,6 +523,17 @@ void setup() {
     1
   );
   vTaskSuspend(driveToCanTaskHandle);
+  
+  xTaskCreatePinnedToCore(
+    returnHomeTask,
+    "Return to start point after picking up coin",
+    4000,
+    NULL,
+    1,
+    &returnHomeTaskHandle,
+    1
+  );
+  vTaskSuspend(returnHomeTaskHandle);
 
   delay(1000);
 }
