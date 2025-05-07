@@ -41,7 +41,7 @@ void ultrasoundTask(void *pvParameters) {
   int distanceR = initialOffsetR;
   int prevDistanceR = 0;
   int prevDistanceL = 0;
-  int maxChange = 5;
+  int maxChange = 8;
 
   // controller gains
   float Kp = 0.2;
@@ -168,6 +168,8 @@ void moveToAreaTask(void *pvParameters) {
   moving = false;
   // start finding can routine if still in RUN
   if (RUN) {
+    // added delay to allow rover to stop moving
+    vTaskDelay(pdMS_TO_TICKS(1000));
     vTaskResume(locateCanTaskHandle);
   }
   
@@ -357,7 +359,7 @@ void locateCanTask(void *pvParameters) {
       vTaskSuspend(moveToAreaTaskHandle);
     } else {
       SerialBT.println("CAN: Can Detected at angle: " + String(canAngle));
-      if (currentCanDistance < 10.0) {
+      if (currentCanDistance < 5.0) {
         SerialBT.println("CAN: Arrived at can");
         delay(5000);
         vTaskResume(returnHomeTaskHandle);
