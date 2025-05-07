@@ -209,6 +209,7 @@ void locateCanTask(void *pvParameters) {
   const int tolerance = 5;
   const int minSequence = 5;
   const int maxMismatches = 1;      // allowed mismatches in the sequence
+  
 
   // structure to store can values
   struct scanValues {
@@ -222,6 +223,7 @@ void locateCanTask(void *pvParameters) {
     int count = 0;
     canFound = false;
     currentCanDistance = 400.0;
+    bool minima = false;
 
     // sweeps the servo through 32 points
     // and takes an ultraound reading at each point
@@ -273,7 +275,7 @@ void locateCanTask(void *pvParameters) {
         // calculate the average value after and before the sequence
         // made up of 3 values or however many there are (start of the array / end of the array)
         for (int k = afterIdx; k < afterIdx + 3; k++) {
-          if (k > count) {
+          if (k >= count) {
             break;
           }
           sumAfter += scanData[k].distance;
@@ -293,16 +295,38 @@ void locateCanTask(void *pvParameters) {
         SerialBT.println("CAN: average after: " + String(averageAfter));
         SerialBT.println("CAN: average before: " + String(averageBefore));
 
-        bool beforeHigher = (beforeIdx >= 0 && averageAfter > refDist + (tolerance));
-        bool afterHigher = (afterIdx < count && averageBefore > refDist + (tolerance));
+        bool beforeHigher = (beforeIdx >= 0 && averageBefore > refDist + (tolerance));
+        bool afterHigher = (afterIdx < count && averageAfter > refDist + (tolerance));
 
-        // if it is a valid potentual can 
-        if (beforeHigher || afterHigher) {
+        // if it is a valid potentual can (minima)
+        if (beforeHigher && afterHigher) {
+          canFound = true;
+
+          // this idicates that it is a minima not just one sided
+          // this will give priority to sequences that are minima
+          minima = true;
+          float distanceSum = 0;
+          float tempAverage = 0;
+          // find average distance for comparison
+          for (int j = start; j < afterIdx; j++) {
+            distanceSum += scanData[j].distance;
+          }
+          tempAverage = distanceSum / (float)((afterIdx - 1) - start);
+          // if less than the last found dip then replace (as more likely to be can)
+          if (tempAverage < currentCanDistance) {
+            currentCanDistance = tempAverage;
+            midIdx = start + length / 2;
+            canAngle = scanData[midIdx].angle;
+          }
+          tempAverage = 0;
+        // if only one sided and a true minima hasnt been found
+        } else if ((beforeHigher || afterHigher) && minima == false) {
+
           canFound = true;
           float distanceSum = 0;
           float tempAverage = 0;
           // find average distance for comparison
-          for (int j = start; j < (afterIdx - 1); j++) {
+          for (int j = start; j < afterIdx; j++) {
             distanceSum += scanData[j].distance;
           }
           tempAverage = distanceSum / (float)((afterIdx - 1) - start);
