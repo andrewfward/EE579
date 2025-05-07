@@ -21,5 +21,6 @@ float setDutyCycle(float);
 int motorStartupSequence();
 int set_direction(bool direction);
 int stop_motors();
+int break_motor();
 
 #endif  // CONFIG_H

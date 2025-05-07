@@ -97,5 +97,6 @@ extern TaskHandle_t bluetoothTaskHandle;
 extern TaskHandle_t locateCanTaskHandle;
 extern TaskHandle_t driveToCanTaskHandle;
 extern TaskHandle_t returnHomeTaskHandle;
+extern TaskHandle_t frontUltrasoundTaskHandle;
 
 #endif  // CONFIG_H

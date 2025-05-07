@@ -136,7 +136,7 @@ void ultrasoundTask(void *pvParameters) {
 
     // logs the left and right distances, and the steering value and position
     String logEntry = String(distanceL) + "," + String(distanceR) + "," + String(steeringAngle) + "," + String(pos);
-    SerialBT.println(logEntry);
+    //SerialBT.println(logEntry);
 
     if (RUN == false || moving == false) {
       vTaskSuspend(NULL);
@@ -152,15 +152,22 @@ void moveToAreaTask(void *pvParameters) {
   float targetDistance = 0.0;
 
   // adjust to change how far it moves
-  unsigned long maxTime = 9000; //for testing, normal operation is 9000 
+  unsigned long maxTime = 20000; //for testing, normal operation is 9000 
+  unsigned long validTime = 6000;
   float estimatedSpeed = 0.01;
   unsigned long startTimeDistance = millis();
+  int itCount = 0;
   
-  set_direction(FORWARDS);
+  set_direction(BACKWARDS);
 
   // moves forward for maxTime unless stopped from interface
-  while (RUN && ((millis() - startTimeDistance) < maxTime)) {
+  while (RUN && ((millis() - startTimeDistance) < maxTime) && moving == true) {
     vTaskDelay(pdMS_TO_TICKS(10));
+    if ((millis() - startTimeDistance) > validTime  && itCount == 0) {
+      vTaskResume(frontUltrasoundTaskHandle);
+      itCount++;
+    }
+
   }
 
   stop_motors();
@@ -189,9 +196,9 @@ void bluetoothTask(void *pvParameters) {
         RUN = true;
         // makes sure the task doesnt start again while it is aleady moving
         if (!moving) {
+          moving = true;
           vTaskResume(ultrasoundTaskHandle);
           vTaskResume(moveToAreaTaskHandle);
-          moving = true;
         }
       } else if (command == "stop") {
         SerialBT.println("Stop Command Received");
@@ -388,7 +395,7 @@ void driveToCanTask(void *pvParameters) {
     intervalTime =  (((int)currentCanDistance) * timeMultiplier) + timeOffset;
     SerialBT.println("CAN: Interval time to drive towards can: " + String(intervalTime));
     // relates the angle of the ultrasound servo to the angle of the steering servo
-    steeringAngle = neutralPos - ((1500 - canAngle)*servoRelation);
+    steeringAngle = neutralPos - ((1570 - canAngle)*servoRelation);
 
     // sets bounds on the maximum steering angle
     if (steeringAngle > maxUsSteer) steeringAngle = maxUsSteer;
@@ -397,7 +404,7 @@ void driveToCanTask(void *pvParameters) {
     // sets the steering servo angle
     servoSteering.writeMicroseconds(steeringAngle);
     startIntervalTime = millis();
-    set_direction(FORWARDS);
+    set_direction(BACKWARDS);
 
     // moves froward for the intervalTime unless stopped from bluetooth interface
     while (RUN && ((millis() - startIntervalTime) < intervalTime)) {
@@ -428,6 +435,52 @@ void returnHomeTask(void *pvParameters){
   stop_motors();
   moving = false;
   vTaskSuspend(NULL);
+}
+
+// bluetooth coms task runs every 100 ms
+void frontUltrasoundTask(void *pvParameters) {
+  int distanceF = 0;
+  int canDetectedCount = 0;
+  // set to the middle
+  servoUltrasound.writeMicroseconds(1570);
+  vTaskDelay(pdMS_TO_TICKS(300));
+  for (;;) {
+
+    digitalWrite(trigPinF, LOW);
+    delayMicroseconds(2);
+
+    digitalWrite(trigPinF, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(trigPinF, LOW);
+
+    vTaskDelay(pdMS_TO_TICKS(60));
+
+    if (receivedF) {
+      distanceF = (endTimeF - startTimeF) / 58;
+      if (abs(distanceF) > 450) {
+        distanceF = 450;
+      }
+      SerialBT.println("CAN: Distance Front: " + String(distanceF));
+      receivedF = false;
+    }
+
+    if (distanceF < 85) {
+      canDetectedCount++;
+    } else {
+      canDetectedCount = 0;
+    }
+
+    if (canDetectedCount > 3) {
+      SerialBT.println("CAN: can detected at: " + String(distanceF));
+      moving = false;
+      break_motor();
+      vTaskSuspend(NULL);
+    }
+
+    if (RUN == false) {
+      vTaskSuspend(NULL);
+    }
+  }
 }
 
 
@@ -536,6 +589,17 @@ void setup() {
     1
   );
   vTaskSuspend(returnHomeTaskHandle);
+
+  xTaskCreatePinnedToCore(
+    frontUltrasoundTask,
+    "check front ultrasound",
+    4000,
+    NULL,
+    1,
+    &frontUltrasoundTaskHandle,
+    1
+  );
+  vTaskSuspend(frontUltrasoundTaskHandle);
 
   delay(1000);
 }

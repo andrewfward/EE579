@@ -52,11 +52,11 @@ int set_direction(bool direction) {
       ledcWrite(ESC_PWM_CHANNEL, setDutyCycle(75));
     }
     // set forwards
-    ledcWrite(ESC_PWM_CHANNEL, setDutyCycle(80));
+    ledcWrite(ESC_PWM_CHANNEL, setDutyCycle(78));
   }
 
   else if (direction == BACKWARDS & DIRECTION_FLAG == BACKWARDS) {
-    ledcWrite(ESC_PWM_CHANNEL, setDutyCycle(80));
+    ledcWrite(ESC_PWM_CHANNEL, setDutyCycle(78));
   }
   
   else if (direction == FORWARDS & DIRECTION_FLAG == FORWARDS){
@@ -69,5 +69,19 @@ int set_direction(bool direction) {
 
 int stop_motors() {
   ledcWrite(ESC_PWM_CHANNEL, setDutyCycle(75));
+  return 0;
+}
+
+// stops the motors reverse them then stops them again
+int break_motor() {
+  stop_motors();
+  delay(200);
+  if (DIRECTION_FLAG == BACKWARDS) {
+    set_direction(FORWARDS);
+  } else {
+    set_direction(BACKWARDS);
+  }
+  delay(800);
+  stop_motors();
   return 0;
 }
