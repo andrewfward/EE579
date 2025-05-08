@@ -5,7 +5,7 @@
 #include "config.h"
 
 int getUltrasoundValue(int trigPin);
-void setInitialOffset(void);
+void calculateInitialOffset(void);
 void setOffsetBasedOnOneSide(bool);
 
 #endif  // CONFIG_H

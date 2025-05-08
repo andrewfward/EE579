@@ -52,11 +52,11 @@ int set_direction(bool direction) {
       ledcWrite(ESC_PWM_CHANNEL, setDutyCycle(75));
     }
     // set forwards
-    ledcWrite(ESC_PWM_CHANNEL, setDutyCycle(80));
+    ledcWrite(ESC_PWM_CHANNEL, setDutyCycle(79));
   }
 
   else if (direction == BACKWARDS & DIRECTION_FLAG == BACKWARDS) {
-    ledcWrite(ESC_PWM_CHANNEL, setDutyCycle(80));
+    ledcWrite(ESC_PWM_CHANNEL, setDutyCycle(79));
   }
   
   else if (direction == FORWARDS & DIRECTION_FLAG == FORWARDS){

@@ -49,7 +49,7 @@ void ultrasoundTask(void *pvParameters) {
   int maxChange = 8;
 
   // controller gains
-  float Kp = 0.2;
+  float Kp = 0.4;
   float Ki = 0.05;
 
   float error = 0.0;
@@ -66,6 +66,12 @@ void ultrasoundTask(void *pvParameters) {
   int loopCount = 0;
 
   for (;;) {
+
+    if (back == true) {
+      Kp = 2.5;
+      Ki = 0.05;
+      maxChange = 20;
+    }
 
     if (loopCount == 0) {
       lastL = initialOffsetL;
@@ -202,11 +208,11 @@ void bluetoothTask(void *pvParameters) {
         SerialBT.println("CAN: Battery high: set runtime to " + String(runtime/1000) + "s.");
       
       } else if (command == "BATTERY_MEDIUM") {
-        runtime=7500;
+        runtime=7000;
         SerialBT.println("CAN: Battery medium: set runtime to " + String(runtime/1000) + "s.");
       
       } else if (command == "BATTERY_LOW") {
-        runtime = 8500;
+        runtime = 8000;
         SerialBT.println("CAN: Battery low: set runtime to " + String(runtime/1000) + "s.");
 
       } else if (command == "BATTERY_CRITICAL") {
@@ -227,7 +233,7 @@ void locateCanTask(void *pvParameters) {
   const int step = 40;           
   int distanceF = 0;
   const int tolerance = 5;
-  const int minSequence = 5;
+  const int minSequence = 4;
   const int maxMismatches = 1;      // allowed mismatches in the sequence
   
 
@@ -293,6 +299,14 @@ void locateCanTask(void *pvParameters) {
         int averageAfter = 0;
         int averageBefore = 0;
 
+        float minValValid = 450;
+        // find average distance for comparison
+        for (int j = start; j < afterIdx; j++) {
+          if (scanData[j].distance < minValValid) {
+            minValValid = scanData[j].distance;
+          }
+        }
+
         // calculate the average value after and before the sequence
         // made up of 3 values or however many there are (start of the array / end of the array)
         for (int k = afterIdx; k < afterIdx + 3; k++) {
@@ -320,7 +334,7 @@ void locateCanTask(void *pvParameters) {
         bool afterHigher = (afterIdx < count && averageAfter > refDist + (tolerance));
 
         // if it is a valid potentual can (minima)
-        if (beforeHigher && afterHigher) {
+        if ((beforeHigher && afterHigher) && minValValid < 100) {
           canFound = true;
 
           // this idicates that it is a minima not just one sided
@@ -345,7 +359,7 @@ void locateCanTask(void *pvParameters) {
           }
           minima = true;
         // if only one sided and a true minima hasnt been found
-        } else if ((beforeHigher || afterHigher) && minima == false) {
+        } else if (((beforeHigher || afterHigher) && minima == false) && minValValid < 100) {
           
           canFound = true;
           float minVal = 450;
@@ -389,6 +403,7 @@ void locateCanTask(void *pvParameters) {
       SerialBT.println("CAN: Can Detected at angle: " + String(canAngle));
       if (currentCanDistance < 7.0) {
         SerialBT.println("CAN: Arrived at can");
+        servoUltrasound.writeMicroseconds(1570);
         delay(2000);
         vTaskResume(returnHomeTaskHandle);
       } else {
@@ -445,7 +460,7 @@ void driveToCanTask(void *pvParameters) {
 
 void returnHomeTask(void *pvParameters){
   unsigned long startReturnTime;
-  unsigned long maxReturnTime = 1000; // 9000;
+  unsigned long maxReturnTime = 600; // 9000;
   // this was guessed and can be adjusted as required
   const float servoMultiplier = 0.5;
 
@@ -459,8 +474,30 @@ void returnHomeTask(void *pvParameters){
     vTaskDelay(pdMS_TO_TICKS(10));
   }
 
+  servoSteering.writeMicroseconds(1490);
+  startReturnTime=millis();
+
+  while(RUN && (millis()-startReturnTime < maxReturnTime)){
+    vTaskDelay(pdMS_TO_TICKS(10));
+  }
+
   stop_motors();
+  back = true;
+  calculateInitialOffset();
+  delay(100);
+  vTaskResume(ultrasoundTaskHandle);
+  vTaskDelay(pdMS_TO_TICKS(1000));
+
+  neutralPos = 1470;
+  maxReturnTime = 10000;
+  startReturnTime=millis();
+  set_direction(BACKWARDS);
+
+  while(RUN && (millis()-startReturnTime < maxReturnTime)){
+    vTaskDelay(pdMS_TO_TICKS(10));
+  }
   moving = false;
+  stop_motors();
   vTaskSuspend(NULL);
 }
 
