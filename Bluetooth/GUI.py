@@ -184,9 +184,9 @@ class RoverControlApp:
             print(voltage)
             if voltage > 8.3:
                 self.serial_port.write(b'BATTERY_HIGH')
-            elif (voltage <= 8.3) & (voltage > 7.7):
+            elif (voltage <= 8.3) & (voltage => 7.6):
                 self.serial_port.write(b'BATTERY_MEDIUM')
-            elif (voltage <= 7.7) & (voltage > 7.45):
+            elif (voltage <= 7.6) & (voltage > 7.45):
                 self.serial_port.write(b'BATTERY_LOW')
             elif voltage < 7.45:
                 self.serial_port.write(b'BATTERY_CRITICAL')
