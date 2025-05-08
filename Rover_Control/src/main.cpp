@@ -129,7 +129,7 @@ void moveToAreaTask(void *pvParameters) {
   float targetDistance = 0.0;
 
   // adjust to change how far it moves
-  unsigned long maxTime = 7000; //for testing, normal operation is 9000 
+  unsigned long maxTime = 7500; //for testing, normal operation is 9000 
   float estimatedSpeed = 0.01;
   unsigned long startTimeDistance = millis();
   
@@ -142,11 +142,11 @@ void moveToAreaTask(void *pvParameters) {
 
   stop_motors();
   SerialBT.println("CAN: Stopped moving");
-  moving = false;
   // start finding can routine if still in RUN
   if (RUN) {
     // added delay to allow rover to stop moving
     vTaskDelay(pdMS_TO_TICKS(1000));
+    moving = false;
     vTaskResume(locateCanTaskHandle);
   }
   
@@ -188,11 +188,12 @@ void bluetoothTask(void *pvParameters) {
         setOffsetBasedOnOneSide(LEFT);
         SerialBT.println("CAN: right offset: " + String(initialOffsetR));
         SerialBT.println("CAN: left offset: " + String(initialOffsetL));
-
+        offsetsCalculated = true;
       } else if (command == "RHS") {
         setOffsetBasedOnOneSide(RIGHT);
         SerialBT.println("CAN: right offset: " + String(initialOffsetR));
         SerialBT.println("CAN: left offset: " + String(initialOffsetL));
+        offsetsCalculated = true;
       }
     }
     // runs roughly every 100 ms
@@ -229,7 +230,7 @@ void locateCanTask(void *pvParameters) {
     // and takes an ultraound reading at each point
     for (int angle = minUsUltra; angle <= maxUsUltra; angle += step) {
       servoUltrasound.writeMicroseconds(angle);
-      vTaskDelay(pdMS_TO_TICKS(300));
+      vTaskDelay(pdMS_TO_TICKS(350));
 
       distanceF = getUltrasoundValue(trigPinF);
 
@@ -263,6 +264,7 @@ void locateCanTask(void *pvParameters) {
       // if the length of the sequence is greater than the min sequence length 
       // check if it is a valid sequence
       if (length >= minSequence) {
+        SerialBT.println("CAN: a sequence found");
         int beforeIdx = start - 1;
         int afterIdx = start + length;
         int sumAfter = 0;
@@ -290,8 +292,8 @@ void locateCanTask(void *pvParameters) {
           countB++;
         }
 
-        averageAfter = sumAfter / countA;
-        averageBefore = sumBefore / countB;
+        averageAfter = (countA > 0) ? (sumAfter / countA) : 0;
+        averageBefore = (countB > 0) ? (sumBefore / countB) : 0;
         SerialBT.println("CAN: average after: " + String(averageAfter));
         SerialBT.println("CAN: average before: " + String(averageBefore));
 
@@ -348,27 +350,36 @@ void locateCanTask(void *pvParameters) {
     }
 
     if (canFound == false) {
-      SerialBT.println("CAN: no can found");
+      SerialBT.println("CAN: noT can found");
       // add logic for failure to find can
       int maxSearchIncrement = 1000;
       int startSearchTime = millis();
+      moving = true;
 
-      while(millis()-startSearchTime<maxSearchIncrement){
-        vTaskResume(moveToAreaTaskHandle);   // this will need changed (just putting this as a reminder for myself)
+      // resume steering task
+      vTaskResume(ultrasoundTaskHandle);
+      set_direction(FORWARDS);
+
+      while(RUN && (millis()-startSearchTime)<maxSearchIncrement){
+        vTaskDelay(pdMS_TO_TICKS(20));
       }
-      vTaskSuspend(moveToAreaTaskHandle);
+      moving = false;
+      stop_motors();
+      // delay to allow ultrasound task to end
+      vTaskDelay(pdMS_TO_TICKS(100));
+
     } else {
       SerialBT.println("CAN: Can Detected at angle: " + String(canAngle));
-      if (currentCanDistance < 5.0) {
+      if (currentCanDistance < 7.0) {
         SerialBT.println("CAN: Arrived at can");
         delay(5000);
         vTaskResume(returnHomeTaskHandle);
       } else {
         vTaskResume(driveToCanTaskHandle);
       }
+      vTaskSuspend(NULL);
     }
     // suspend self
-    vTaskSuspend(NULL);
   }
 }
 
@@ -376,7 +387,7 @@ void locateCanTask(void *pvParameters) {
 void driveToCanTask(void *pvParameters) {
   unsigned long intervalTime;
   unsigned long startIntervalTime = -1;
-  const int timeMultiplier = 12;
+  const int timeMultiplier = 10;
   const int timeOffset = 600;
 
   // this was guessed and can be adjusted as required
@@ -385,7 +396,10 @@ void driveToCanTask(void *pvParameters) {
   //infinite loop so that it can be resumed
   for (;;) {
     // sets the drive forward time as a function of the distance from the can
-    intervalTime =  (((int)currentCanDistance) * timeMultiplier) + timeOffset;
+    intervalTime =  (((int)currentCanDistance) * timeMultiplier);
+    if (intervalTime < 600) {
+      intervalTime = 600;
+    }
     SerialBT.println("CAN: Interval time to drive towards can: " + String(intervalTime));
     // relates the angle of the ultrasound servo to the angle of the steering servo
     steeringAngle = neutralPos - ((1570 - canAngle)*servoRelation);

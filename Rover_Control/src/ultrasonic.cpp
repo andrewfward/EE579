@@ -8,7 +8,11 @@ int getUltrasoundValue(int trigPin) {
     digitalWrite(trigPin, HIGH);
     delayMicroseconds(10);
     digitalWrite(trigPin, LOW);
-    vTaskDelay(pdMS_TO_TICKS(55));
+    if (trigPinF) {
+      vTaskDelay(pdMS_TO_TICKS(90));
+    } else {
+      vTaskDelay(pdMS_TO_TICKS(55));
+    }
 
     if (trigPin == trigPinL) {
         if (receivedL) {
@@ -29,7 +33,7 @@ int getUltrasoundValue(int trigPin) {
     } else if (trigPin == trigPinF) {
         if (receivedF) {
             distance = (endTimeF - startTimeF) / 58;
-            if (distance > 450) {
+            if (abs(distance) > 450) {
               distance = 450;
             }
             receivedF = false;
