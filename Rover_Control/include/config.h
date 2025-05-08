@@ -32,6 +32,9 @@ extern bool logDataReady;
 extern bool RUN;
 extern bool moving;
 
+// Runtime, default value is 9000 but can be set based on battery voltage.
+extern int runtime;
+
 // Servo Objects
 extern Servo servoSteering;
 extern Servo servoUltrasound;
