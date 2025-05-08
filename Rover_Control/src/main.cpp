@@ -7,6 +7,8 @@
 void calculateInitialOffset(void);
 void setOffsetBasedOnOneSide(bool);
 
+int runtime = 9000;
+
 // Interrupts for each ultrasound sensor
 void IRAM_ATTR echoL() { 
   if (digitalRead(echoPinL)) {
@@ -154,7 +156,7 @@ void moveToAreaTask(void *pvParameters) {
   float targetDistance = 0.0;
 
   // adjust to change how far it moves
-  unsigned long maxTime = 9000; //for testing, normal operation is 9000 
+  unsigned long maxTime = runtime; // normal operation is 9000 
   float estimatedSpeed = 0.01;
   unsigned long startTimeDistance = millis();
   
@@ -182,8 +184,8 @@ void moveToAreaTask(void *pvParameters) {
 
 // bluetooth coms task runs every 100 ms
 void bluetoothTask(void *pvParameters) {
-  for (;;) {
-    if (SerialBT.available()) {
+  for (;;) { 
+    if (SerialBT.available()){
       String command = SerialBT.readStringUntil('\n');
       command.trim();
       if ((command == "start") && offsetsCalculated) {
@@ -218,7 +220,22 @@ void bluetoothTask(void *pvParameters) {
         setOffsetBasedOnOneSide(RIGHT);
         SerialBT.println("CAN: right offset: " + String(initialOffsetR));
         SerialBT.println("CAN: left offset: " + String(initialOffsetL));
-      }
+
+      } else if (command == "BATTERY_HIGH") {
+        runtime=7500; // milliseconds
+        SerialBT.println("CAN: Battery high: set runtime to " + String(runtime/1000) + "s.");
+      
+      } else if (command == "BATTERY_MEDIUM") {
+        runtime=8500;
+        SerialBT.println("CAN: Battery medium: set runtime to " + String(runtime/1000) + "s.");
+      
+      } else if (command == "BATTERY_LOW") {
+        runtime = 10000;
+        SerialBT.println("CAN: Battery low: set runtime to " + String(runtime/1000) + "s.");
+
+      } else if (command == "BATTERY_CRITICAL")
+        SerialBT.println("CAN: Battery needs recharged!");
+
     }
     // runs roughly every 100 ms
     vTaskDelay(pdMS_TO_TICKS(100));
