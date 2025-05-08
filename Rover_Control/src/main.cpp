@@ -391,7 +391,7 @@ void locateCanTask(void *pvParameters) {
       SerialBT.println("CAN: Can Detected at angle: " + String(canAngle));
       if (currentCanDistance < 7.0) {
         SerialBT.println("CAN: Arrived at can");
-        delay(5000);
+        delay(2000);
         vTaskResume(returnHomeTaskHandle);
       } else {
         vTaskResume(driveToCanTaskHandle);
@@ -451,6 +451,9 @@ void returnHomeTask(void *pvParameters){
   // this was guessed and can be adjusted as required
   const float servoMultiplier = 0.5;
 
+  SerialBT.println("CAN: Returning home...");
+
+  startReturnTime=millis();
   set_direction(BACKWARDS);
   moving = true;
 
