@@ -195,6 +195,7 @@ void bluetoothTask(void *pvParameters) {
         setOffsetBasedOnOneSide(RIGHT);
         SerialBT.println("CAN: right offset: " + String(initialOffsetR));
         SerialBT.println("CAN: left offset: " + String(initialOffsetL));
+        offsetsCalculated = true;
 
       } else if (command == "BATTERY_HIGH") {
         runtime=7500; // milliseconds
@@ -208,7 +209,7 @@ void bluetoothTask(void *pvParameters) {
         runtime = 10000;
         SerialBT.println("CAN: Battery low: set runtime to " + String(runtime/1000) + "s.");
 
-      } else if (command == "BATTERY_CRITICAL")
+      } else if (command == "BATTERY_CRITICAL") {
         SerialBT.println("CAN: Battery needs recharged!");
 
         offsetsCalculated = true;
@@ -405,7 +406,7 @@ void locateCanTask(void *pvParameters) {
 void driveToCanTask(void *pvParameters) {
   unsigned long intervalTime;
   unsigned long startIntervalTime = -1;
-  const int timeMultiplier = 10;
+  const int timeMultiplier = 150;
   const int timeOffset = 600;
 
   // this was guessed and can be adjusted as required
@@ -414,7 +415,7 @@ void driveToCanTask(void *pvParameters) {
   //infinite loop so that it can be resumed
   for (;;) {
     // sets the drive forward time as a function of the distance from the can
-    intervalTime =  (((int)currentCanDistance) * timeMultiplier);
+    intervalTime =  sqrt((int)currentCanDistance) * timeMultiplier;
     if (intervalTime < 600) {
       intervalTime = 600;
     }
