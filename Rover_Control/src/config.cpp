@@ -25,8 +25,8 @@ int minUs = 1200;
 int maxUs = 1700;
 */
 
-int minUsSteer = 1170;
-int maxUsSteer = 1770;
+int minUsSteer = 1120;
+int maxUsSteer = 1820;
 float neutralPos = 1450.0;
 
 int minUsUltra = 970;
