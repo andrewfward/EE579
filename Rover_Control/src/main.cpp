@@ -198,15 +198,15 @@ void bluetoothTask(void *pvParameters) {
         offsetsCalculated = true;
 
       } else if (command == "BATTERY_HIGH") {
-        runtime=7000; // milliseconds
+        runtime=6500; // milliseconds
         SerialBT.println("CAN: Battery high: set runtime to " + String(runtime/1000) + "s.");
       
       } else if (command == "BATTERY_MEDIUM") {
-        runtime=8000;
+        runtime=7500;
         SerialBT.println("CAN: Battery medium: set runtime to " + String(runtime/1000) + "s.");
       
       } else if (command == "BATTERY_LOW") {
-        runtime = 9000;
+        runtime = 8500;
         SerialBT.println("CAN: Battery low: set runtime to " + String(runtime/1000) + "s.");
 
       } else if (command == "BATTERY_CRITICAL") {
