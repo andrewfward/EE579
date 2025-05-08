@@ -243,7 +243,7 @@ void locateCanTask(void *pvParameters) {
     int distance;
   };
 
-  scanValues scanData[31]; // store 61 values
+  scanValues scanData[29]; // store 61 values
   // outer for loop exists so that task can be resumed
   for (;;) {
     int count = 0;
