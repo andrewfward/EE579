@@ -326,43 +326,41 @@ void locateCanTask(void *pvParameters) {
           // this idicates that it is a minima not just one sided
           // this will give priority to sequences that are minima
           
-          float distanceSum = 0;
-          float tempAverage = 0;
+          float minVal = 450;
           // find average distance for comparison
           for (int j = start; j < afterIdx; j++) {
-            distanceSum += scanData[j].distance;
+            if (scanData[j].distance < minVal) {
+              minVal = scanData[j].distance;
+            }
           }
-          tempAverage = distanceSum / (float)((afterIdx - 1) - start);
           // if less than the last found dip then replace (as more likely to be can)
           if (minima == false) {
-            currentCanDistance = tempAverage;
+            currentCanDistance = minVal;
             midIdx = start + length / 2;
             canAngle = scanData[midIdx].angle;
-          } else if (tempAverage < currentCanDistance) {
-            currentCanDistance = tempAverage;
+          } else if (minVal < currentCanDistance) {
+            currentCanDistance = minVal;
             midIdx = start + length / 2;
             canAngle = scanData[midIdx].angle;
           }
-          tempAverage = 0;
           minima = true;
         // if only one sided and a true minima hasnt been found
         } else if ((beforeHigher || afterHigher) && minima == false) {
-
+          
           canFound = true;
-          float distanceSum = 0;
-          float tempAverage = 0;
+          float minVal = 450;
           // find average distance for comparison
           for (int j = start; j < afterIdx; j++) {
-            distanceSum += scanData[j].distance;
+            if (scanData[j].distance < minVal) {
+              minVal = scanData[j].distance;
+            }
           }
-          tempAverage = distanceSum / (float)((afterIdx - 1) - start);
           // if less than the last found dip then replace (as more likely to be can)
-          if (tempAverage < currentCanDistance) {
-            currentCanDistance = tempAverage;
+          if (minVal < currentCanDistance) {
+            currentCanDistance = minVal;
             midIdx = start + length / 2;
             canAngle = scanData[midIdx].angle;
           }
-          tempAverage = 0;
         }
         start += length;
       }
