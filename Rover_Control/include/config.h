@@ -7,10 +7,12 @@
 
 
 
-// -------------------- Constants --------------------
+// -------------------- definitions --------------------
 #define SPEED_OF_SOUND 340
 #define NUM_LANDMARKS 3
 #define MAX_LOG_ENTRIES 500
+#define LEFT 1
+#define RIGHT 0
 
 // -------------------- Structures --------------------
 struct LogEntry {

@@ -1,5 +1,6 @@
 #include "esc_pwm.h"
 #include "config.h"
+#include "ultrasonic.h"
 #include <cmath> // For abs() in C++
 #include "main.h"
 
@@ -74,19 +75,7 @@ void ultrasoundTask(void *pvParameters) {
     // logic to trigger the ultrasound sensors (bassed off datasheet)
     // uses the interrupts at the top
     if (toggleSensor == false) {
-      digitalWrite(trigPinL, LOW);
-      delayMicroseconds(2);
-      digitalWrite(trigPinL, HIGH);
-      delayMicroseconds(10);
-      digitalWrite(trigPinL, LOW);
-      vTaskDelay(pdMS_TO_TICKS(55));
-      if (receivedL) {
-        distanceL = (endTimeL - startTimeL) / 58;
-        if (distanceL > 450) {
-          distanceL = 450;
-        }
-        receivedL = false;
-      }
+      distanceL = getUltrasoundValue(trigPinL);
 
       // adjusts offset if a large change is detected
       if (abs(distanceL - lastL) > maxChange) {
@@ -97,21 +86,7 @@ void ultrasoundTask(void *pvParameters) {
       // rather than combining then like it does now (functionally this is no different)
       posL = distanceL - initialOffsetL;
     } else {
-      digitalWrite(trigPinR, LOW);
-      delayMicroseconds(2);
-      digitalWrite(trigPinR, HIGH);
-      delayMicroseconds(10);
-      digitalWrite(trigPinR, LOW);
-
-      // delay to wait for interupts to pick up the return signal
-      // if this is chnaged also need to chnage timeStep to match
-      vTaskDelay(pdMS_TO_TICKS(60));
-      if (receivedR) {
-        distanceR = (endTimeR - startTimeR) / 58;
-        if (distanceR > 450) {distanceR = 450;
-        }
-        receivedR = false;
-      }
+      distanceR = getUltrasoundValue(trigPinR);
       // adjusts offset if a large change is detected
       if (abs(distanceR - lastR) > maxChange) {
         int deltaR = distanceR - lastR;
@@ -169,11 +144,11 @@ void moveToAreaTask(void *pvParameters) {
 
   stop_motors();
   SerialBT.println("CAN: Stopped moving");
-  moving = false;
   // start finding can routine if still in RUN
   if (RUN) {
     // added delay to allow rover to stop moving
     vTaskDelay(pdMS_TO_TICKS(1000));
+    moving = false;
     vTaskResume(locateCanTaskHandle);
   }
   
@@ -215,7 +190,7 @@ void bluetoothTask(void *pvParameters) {
         setOffsetBasedOnOneSide(LEFT);
         SerialBT.println("CAN: right offset: " + String(initialOffsetR));
         SerialBT.println("CAN: left offset: " + String(initialOffsetL));
-
+        offsetsCalculated = true;
       } else if (command == "RHS") {
         setOffsetBasedOnOneSide(RIGHT);
         SerialBT.println("CAN: right offset: " + String(initialOffsetR));
@@ -236,6 +211,8 @@ void bluetoothTask(void *pvParameters) {
       } else if (command == "BATTERY_CRITICAL")
         SerialBT.println("CAN: Battery needs recharged!");
 
+        offsetsCalculated = true;
+      }
     }
     // runs roughly every 100 ms
     vTaskDelay(pdMS_TO_TICKS(100));
@@ -251,6 +228,7 @@ void locateCanTask(void *pvParameters) {
   const int tolerance = 5;
   const int minSequence = 5;
   const int maxMismatches = 1;      // allowed mismatches in the sequence
+  
 
   // structure to store can values
   struct scanValues {
@@ -264,29 +242,15 @@ void locateCanTask(void *pvParameters) {
     int count = 0;
     canFound = false;
     currentCanDistance = 400.0;
+    bool minima = false;
 
     // sweeps the servo through 32 points
     // and takes an ultraound reading at each point
     for (int angle = minUsUltra; angle <= maxUsUltra; angle += step) {
       servoUltrasound.writeMicroseconds(angle);
-      vTaskDelay(pdMS_TO_TICKS(300));
+      vTaskDelay(pdMS_TO_TICKS(350));
 
-      digitalWrite(trigPinF, LOW);
-      delayMicroseconds(2);
-  
-      digitalWrite(trigPinF, HIGH);
-      delayMicroseconds(10);
-      digitalWrite(trigPinF, LOW);
-  
-      vTaskDelay(pdMS_TO_TICKS(80));
-
-      if (receivedF) {
-        distanceF = (endTimeF - startTimeF) / 58;
-        if (abs(distanceF) > 450) {
-          distanceF = 450;
-        }
-        receivedF = false;
-      }
+      distanceF = getUltrasoundValue(trigPinF);
 
       scanData[count] = {angle, distanceF};
 
@@ -318,6 +282,7 @@ void locateCanTask(void *pvParameters) {
       // if the length of the sequence is greater than the min sequence length 
       // check if it is a valid sequence
       if (length >= minSequence) {
+        SerialBT.println("CAN: a sequence found");
         int beforeIdx = start - 1;
         int afterIdx = start + length;
         int sumAfter = 0;
@@ -330,7 +295,7 @@ void locateCanTask(void *pvParameters) {
         // calculate the average value after and before the sequence
         // made up of 3 values or however many there are (start of the array / end of the array)
         for (int k = afterIdx; k < afterIdx + 3; k++) {
-          if (k > count) {
+          if (k >= count) {
             break;
           }
           sumAfter += scanData[k].distance;
@@ -345,21 +310,48 @@ void locateCanTask(void *pvParameters) {
           countB++;
         }
 
-        averageAfter = sumAfter / countA;
-        averageBefore = sumBefore / countB;
+        averageAfter = (countA > 0) ? (sumAfter / countA) : 0;
+        averageBefore = (countB > 0) ? (sumBefore / countB) : 0;
         SerialBT.println("CAN: average after: " + String(averageAfter));
         SerialBT.println("CAN: average before: " + String(averageBefore));
 
-        bool beforeHigher = (beforeIdx >= 0 && averageAfter > refDist + (tolerance));
-        bool afterHigher = (afterIdx < count && averageBefore > refDist + (tolerance));
+        bool beforeHigher = (beforeIdx >= 0 && averageBefore > refDist + (tolerance));
+        bool afterHigher = (afterIdx < count && averageAfter > refDist + (tolerance));
 
-        // if it is a valid potentual can 
-        if (beforeHigher || afterHigher) {
+        // if it is a valid potentual can (minima)
+        if (beforeHigher && afterHigher) {
+          canFound = true;
+
+          // this idicates that it is a minima not just one sided
+          // this will give priority to sequences that are minima
+          
+          float distanceSum = 0;
+          float tempAverage = 0;
+          // find average distance for comparison
+          for (int j = start; j < afterIdx; j++) {
+            distanceSum += scanData[j].distance;
+          }
+          tempAverage = distanceSum / (float)((afterIdx - 1) - start);
+          // if less than the last found dip then replace (as more likely to be can)
+          if (minima == false) {
+            currentCanDistance = tempAverage;
+            midIdx = start + length / 2;
+            canAngle = scanData[midIdx].angle;
+          } else if (tempAverage < currentCanDistance) {
+            currentCanDistance = tempAverage;
+            midIdx = start + length / 2;
+            canAngle = scanData[midIdx].angle;
+          }
+          tempAverage = 0;
+          minima = true;
+        // if only one sided and a true minima hasnt been found
+        } else if ((beforeHigher || afterHigher) && minima == false) {
+
           canFound = true;
           float distanceSum = 0;
           float tempAverage = 0;
           // find average distance for comparison
-          for (int j = start; j < (afterIdx - 1); j++) {
+          for (int j = start; j < afterIdx; j++) {
             distanceSum += scanData[j].distance;
           }
           tempAverage = distanceSum / (float)((afterIdx - 1) - start);
@@ -376,27 +368,36 @@ void locateCanTask(void *pvParameters) {
     }
 
     if (canFound == false) {
-      SerialBT.println("CAN: no can found");
+      SerialBT.println("CAN: noT can found");
       // add logic for failure to find can
       int maxSearchIncrement = 1000;
       int startSearchTime = millis();
+      moving = true;
 
-      while(millis()-startSearchTime<maxSearchIncrement){
-        vTaskResume(moveToAreaTaskHandle);
+      // resume steering task
+      vTaskResume(ultrasoundTaskHandle);
+      set_direction(FORWARDS);
+
+      while(RUN && (millis()-startSearchTime)<maxSearchIncrement){
+        vTaskDelay(pdMS_TO_TICKS(20));
       }
-      vTaskSuspend(moveToAreaTaskHandle);
+      moving = false;
+      stop_motors();
+      // delay to allow ultrasound task to end
+      vTaskDelay(pdMS_TO_TICKS(100));
+
     } else {
       SerialBT.println("CAN: Can Detected at angle: " + String(canAngle));
-      if (currentCanDistance < 5.0) {
+      if (currentCanDistance < 7.0) {
         SerialBT.println("CAN: Arrived at can");
         delay(5000);
         vTaskResume(returnHomeTaskHandle);
       } else {
         vTaskResume(driveToCanTaskHandle);
       }
+      vTaskSuspend(NULL);
     }
     // suspend self
-    vTaskSuspend(NULL);
   }
 }
 
@@ -404,7 +405,7 @@ void locateCanTask(void *pvParameters) {
 void driveToCanTask(void *pvParameters) {
   unsigned long intervalTime;
   unsigned long startIntervalTime = -1;
-  const int timeMultiplier = 12;
+  const int timeMultiplier = 10;
   const int timeOffset = 600;
 
   // this was guessed and can be adjusted as required
@@ -413,10 +414,13 @@ void driveToCanTask(void *pvParameters) {
   //infinite loop so that it can be resumed
   for (;;) {
     // sets the drive forward time as a function of the distance from the can
-    intervalTime =  (((int)currentCanDistance) * timeMultiplier) + timeOffset;
+    intervalTime =  (((int)currentCanDistance) * timeMultiplier);
+    if (intervalTime < 600) {
+      intervalTime = 600;
+    }
     SerialBT.println("CAN: Interval time to drive towards can: " + String(intervalTime));
     // relates the angle of the ultrasound servo to the angle of the steering servo
-    steeringAngle = neutralPos - ((1500 - canAngle)*servoRelation);
+    steeringAngle = neutralPos - ((1570 - canAngle)*servoRelation);
 
     // sets bounds on the maximum steering angle
     if (steeringAngle > maxUsSteer) steeringAngle = maxUsSteer;
@@ -570,69 +574,4 @@ void setup() {
 
 void loop() {
   // Nothing needed here
-}
-
-void calculateInitialOffset(void) {
-  int distanceL = 0;
-  int distanceR = 0;
-  digitalWrite(trigPinL, LOW);
-  delayMicroseconds(2);
-
-  digitalWrite(trigPinL, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(trigPinL, LOW);
-  
-  delay(60);
-
-  if (receivedL) {
-    initialOffsetL = (endTimeL - startTimeL) / 58;
-    receivedL = false;
-  }
-
-  digitalWrite(trigPinR, LOW);
-  delayMicroseconds(2);
-  digitalWrite(trigPinR, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(trigPinR, LOW);
-  delay(60);
-
-  if (receivedR) {
-    initialOffsetR = (endTimeR - startTimeR) / 58;
-    receivedR = false;
-  }
-}
-
-void setOffsetBasedOnOneSide(bool side) {
-  if (side == LEFT){
-    SerialBT.println("CAN:Calculating based on LHS...");
-    digitalWrite(trigPinL, LOW);
-    delayMicroseconds(2);
-    digitalWrite(trigPinL, HIGH);
-    delayMicroseconds(10);
-    digitalWrite(trigPinL, LOW);
-    
-    delay(60);
-
-    if (receivedL) {
-      initialOffsetL = (endTimeL - startTimeL) / 58;
-      initialOffsetR = 300 - initialOffsetL; //estimating the width of the corridor minus the width of the car 
-      receivedL = false;
-    }
-  } 
-  else {
-    SerialBT.println("CAN:Calculating based on RHS...");
-    digitalWrite(trigPinR, LOW);
-    delayMicroseconds(2);
-    digitalWrite(trigPinR, HIGH);
-    delayMicroseconds(10);
-    digitalWrite(trigPinR, LOW);
-    
-    delay(60);
-
-    if (receivedR) {
-      initialOffsetR = (endTimeR - startTimeR) / 58;
-      initialOffsetL = 300 - initialOffsetR; //estimating the width of the corridor minus the width of the car 
-      receivedR = false;
-    }
-  }
 }
