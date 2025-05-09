@@ -1,6 +1,8 @@
 #include "esc_pwm.h"
 #include "config.h"
 #include "ultrasonic.h"
+#include <stdio.h>
+#include <stdlib.h>
 #include <cmath> // For abs() in C++
 #include "main.h"
 
@@ -340,14 +342,38 @@ void locateCanTask(void *pvParameters) {
           // this idicates that it is a minima not just one sided
           // this will give priority to sequences that are minima
           
-          float minVal = 450;
+          // float minVal = 450;
           // find average distance for comparison
+          /*
           for (int j = start; j < afterIdx; j++) {
             if (scanData[j].distance < minVal) {
               minVal = scanData[j].distance;
             }
+          }*/          // if less than the last found dip then replace (as more likely to be can)
+
+          // create empty 32 array
+          int seqArray[32] = {0};
+          int i = 0;
+          int seqElements = afterIdx - start;
+          int n = sizeof(seqArray) / sizeof(seqArray[0]);
+          int comp(const void* a, const void* b) {
+            return (*(int*)a - *(int*)b);
           }
-          // if less than the last found dip then replace (as more likely to be can)
+          for (int j = start; j < afterIdx; j++) {
+            seqArray[i] = scanData[j].distance;
+            i++;
+          }
+          qsort(seqArray, n, sizeof(int), comp);
+
+
+
+
+
+          // set length of array to be idx(afterIdx - start)
+          // funky calculation to sort
+          // find median of array
+
+
           if (minima == false) {
             currentCanDistance = minVal;
             midIdx = start + length / 2;
