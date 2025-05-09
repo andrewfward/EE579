@@ -10,7 +10,7 @@
 #define BACKWARDS 0
 
 // PWM settings
-static int ESC_PWM_PIN = 17;
+static int ESC_PWM_PIN = 14;
 static int ESC_PWM_CHANNEL = 10;
 static int ESC_PWM_FREQ = 500;
 static int ESC_PWM_RESOLUTION = 8;

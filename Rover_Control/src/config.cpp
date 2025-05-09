@@ -37,18 +37,18 @@ int maxUsUltra = 2100;
 //int maxUsUltra = 1860;
 
 // -------------------- Servo Pins --------------------
-const int steeringServoPin = 18;
-const int ultrasoundServoPin = 5;
+const int steeringServoPin = 32;
+const int ultrasoundServoPin = 33;
 
 // -------------------- Ultrasound Sensor Pins --------------------
-const int trigPinR = 23;
-const int echoPinR = 22;
+const int trigPinR = 16;
+const int echoPinR = 17;
 
-const int trigPinL = 21;
-const int echoPinL = 19;
+const int trigPinL = 26;
+const int echoPinL = 27;
 
-const int trigPinF = 15;
-const int echoPinF = 16;
+const int trigPinF = 23;
+const int echoPinF = 22;
 
 // -------------------- Position and Control Variables --------------------
 float pos = 0;
