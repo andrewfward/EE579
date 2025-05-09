@@ -49,6 +49,7 @@ extern bool offsetsCalculated;
 extern int minUsSteer;
 extern int maxUsSteer;
 extern float neutralPos;
+extern bool back;
 
 // ultraound servo parameters 
 extern int minUsUltra;
