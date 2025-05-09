@@ -41,11 +41,11 @@ const int steeringServoPin = 32;
 const int ultrasoundServoPin = 33;
 
 // -------------------- Ultrasound Sensor Pins --------------------
-const int trigPinR = 16;
-const int echoPinR = 17;
+const int trigPinL = 16;
+const int echoPinL = 17;
 
-const int trigPinL = 26;
-const int echoPinL = 27;
+const int trigPinR = 26;
+const int echoPinR = 27;
 
 const int trigPinF = 23;
 const int echoPinF = 22;
