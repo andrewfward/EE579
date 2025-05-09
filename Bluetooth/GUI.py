@@ -15,7 +15,7 @@ class RoverControlApp:
         self.running = False
         self.data_log = []
 
-        self.voltage_var = tk.DoubleVar(value=7.9)
+        self.voltage_var = tk.DoubleVar(value=8.5)
 
         self.connect_frame = tk.Frame(root)
         self.connect_frame.pack(pady=5)
