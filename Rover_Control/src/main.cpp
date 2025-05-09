@@ -474,6 +474,7 @@ void returnHomeTask(void *pvParameters){
     vTaskDelay(pdMS_TO_TICKS(10));
   }
 
+  maxReturnTime = 1500;
   servoSteering.writeMicroseconds(1490);
   startReturnTime=millis();
 
@@ -482,22 +483,7 @@ void returnHomeTask(void *pvParameters){
   }
 
   stop_motors();
-  back = true;
-  calculateInitialOffset();
-  delay(100);
-  vTaskResume(ultrasoundTaskHandle);
-  vTaskDelay(pdMS_TO_TICKS(1000));
-
-  neutralPos = 1470;
-  maxReturnTime = 10000;
-  startReturnTime=millis();
-  set_direction(BACKWARDS);
-
-  while(RUN && (millis()-startReturnTime < maxReturnTime)){
-    vTaskDelay(pdMS_TO_TICKS(10));
-  }
   moving = false;
-  stop_motors();
   vTaskSuspend(NULL);
 }
 
