@@ -389,6 +389,7 @@ void locateCanTask(void *pvParameters) {
 
       // resume steering task
       vTaskResume(ultrasoundTaskHandle);
+      vTaskDelay(pdMS_TO_TICKS(100));
       set_direction(FORWARDS);
 
       while(RUN && (millis()-startSearchTime)<maxSearchIncrement){
@@ -461,8 +462,6 @@ void driveToCanTask(void *pvParameters) {
 void returnHomeTask(void *pvParameters){
   unsigned long startReturnTime;
   unsigned long maxReturnTime = 600; // 9000;
-  // this was guessed and can be adjusted as required
-  const float servoMultiplier = 0.5;
 
   SerialBT.println("CAN: Returning home...");
 
@@ -474,17 +473,38 @@ void returnHomeTask(void *pvParameters){
     vTaskDelay(pdMS_TO_TICKS(10));
   }
 
-  maxReturnTime = 1500;
-  servoSteering.writeMicroseconds(1490);
-  startReturnTime=millis();
-
-  while(RUN && (millis()-startReturnTime < maxReturnTime)){
-    vTaskDelay(pdMS_TO_TICKS(10));
-  }
-
   stop_motors();
   moving = false;
-  vTaskSuspend(NULL);
+  int loopCount = 0;
+
+  for(;;) {
+    int distanceL = getUltrasoundValue(trigPinL);
+    int distanceR = getUltrasoundValue(trigPinR);
+    if (distanceR < 50) {
+      servoSteering.writeMicroseconds(1400);
+    } else if (distanceL < 50) {
+      servoSteering.writeMicroseconds(1520);
+    } else {
+      servoSteering.writeMicroseconds(1490);
+    }
+    maxReturnTime = 1000;
+    startReturnTime=millis();
+    moving = true;
+    set_direction(BACKWARDS);
+
+    while(RUN && (millis()-startReturnTime < maxReturnTime)){
+      vTaskDelay(pdMS_TO_TICKS(10));
+    }
+
+    stop_motors();
+    moving = false;
+    delay(500);
+
+    if (loopCount > 7) {
+      vTaskSuspend(NULL);
+    }
+    loopCount++;
+  }
 }
 
 
