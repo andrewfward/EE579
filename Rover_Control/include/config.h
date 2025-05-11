@@ -14,20 +14,11 @@
 #define LEFT 1
 #define RIGHT 0
 
-// -------------------- Structures --------------------
-struct LogEntry {
-    int distanceL;
-    int distanceR;
-    int steering;
-};
+// -------------------- Structures -------------------
+
+
 
 // -------------------- Extern Variables --------------------
-
-// Logging
-extern LogEntry logData[MAX_LOG_ENTRIES];
-extern int logIndex;
-extern bool logDataReady;
-
 // Movement Flags
 extern bool RUN;
 extern bool moving;
@@ -49,7 +40,6 @@ extern bool offsetsCalculated;
 extern int minUsSteer;
 extern int maxUsSteer;
 extern float neutralPos;
-extern bool back;
 
 // ultraound servo parameters 
 extern int minUsUltra;
@@ -58,6 +48,9 @@ extern int maxUsUltra;
 // Servo Pins
 extern const int steeringServoPin;
 extern const int ultrasoundServoPin;
+
+// ESC pin
+extern const int ESC_PWM_PIN;
 
 // Ultrasound Sensor Pins
 extern const int trigPinR;
@@ -71,8 +64,7 @@ extern const int echoPinF;
 extern float pos;
 extern float posR;
 extern float posL;
-extern int landmarkCounter;
-extern bool landmarkFlag;
+extern int runtime;
 
 // finding can variables 
 extern int canAngle;

@@ -1,40 +1,70 @@
 #include "esc_pwm.h"
 #include "config.h"
 #include "ultrasonic.h"
-#include <cmath> // For abs() in C++
+#include <cmath> 
 #include "main.h"
 
-// Function declarations
-void calculateInitialOffset(void);
-void setOffsetBasedOnOneSide(bool);
 
-int runtime = 9000;
+// bluetooth coms task runs every 100 ms
+void bluetoothTask(void *pvParameters) {
+  for (;;) { 
+    if (SerialBT.available()){
+      String command = SerialBT.readStringUntil('\n');
+      command.trim();
+      if ((command == "start") && offsetsCalculated) {
+        SerialBT.println("Start Command Received");
+        RUN = true;
+        // makes sure the task doesnt start again while it is aleady moving
+        if (!moving) {
+          vTaskResume(ultrasoundTaskHandle);
+          vTaskResume(moveToAreaTaskHandle);
+          moving = true;
+        }
+      } else if (command == "stop") {
+        SerialBT.println("Stop Command Received");
+        RUN = false;
+        stop_motors();
+        moving = false;
+      } else if (command == "ping") {
+        // confirms connection and prints out the offsets
+        SerialBT.println("Pong");
+      } else if (command == "calc_offsets") {
+        calculateInitialOffset();      
+        SerialBT.println("CAN: right offset: " + String(initialOffsetR));
+        SerialBT.println("CAN: left offset: " + String(initialOffsetL));
+        delay(1000);
+        offsetsCalculated = true;
+      } else if (command == "LHS") {
+        setOffsetBasedOnOneSide(LEFT);
+        SerialBT.println("CAN: right offset: " + String(initialOffsetR));
+        SerialBT.println("CAN: left offset: " + String(initialOffsetL));
+        offsetsCalculated = true;
+      } else if (command == "RHS") {
+        setOffsetBasedOnOneSide(RIGHT);
+        SerialBT.println("CAN: right offset: " + String(initialOffsetR));
+        SerialBT.println("CAN: left offset: " + String(initialOffsetL));
+        offsetsCalculated = true;
 
-// Interrupts for each ultrasound sensor
-void IRAM_ATTR echoL() { 
-  if (digitalRead(echoPinL)) {
-    startTimeL = micros();
-  } else {
-    endTimeL = micros();
-    receivedL = true;
-  }
-}
+      } else if (command == "BATTERY_HIGH") {
+        runtime=6500; // milliseconds
+        SerialBT.println("CAN: Battery high: set runtime to " + String(runtime/1000) + "s.");
+      
+      } else if (command == "BATTERY_MEDIUM") {
+        runtime=7000;
+        SerialBT.println("CAN: Battery medium: set runtime to " + String(runtime/1000) + "s.");
+      
+      } else if (command == "BATTERY_LOW") {
+        runtime = 8000;
+        SerialBT.println("CAN: Battery low: set runtime to " + String(runtime/1000) + "s.");
 
-void IRAM_ATTR echoR() { 
-  if (digitalRead(echoPinR)) {
-    startTimeR = micros();
-  } else {
-    endTimeR = micros();
-    receivedR = true;
-  }
-}
+      } else if (command == "BATTERY_CRITICAL") {
+        SerialBT.println("CAN: Battery needs recharged!");
 
-void IRAM_ATTR echoF() { 
-  if (digitalRead(echoPinF)) {
-    startTimeF = micros();
-  } else {
-    endTimeF = micros();
-    receivedF = true;
+        offsetsCalculated = true;
+      }
+    }
+    // runs roughly every 100 ms
+    vTaskDelay(pdMS_TO_TICKS(100));
   }
 }
 
@@ -66,12 +96,6 @@ void ultrasoundTask(void *pvParameters) {
   int loopCount = 0;
 
   for (;;) {
-
-    if (back == true) {
-      Kp = 2.5;
-      Ki = 0.05;
-      maxChange = 20;
-    }
 
     if (loopCount == 0) {
       lastL = initialOffsetL;
@@ -163,70 +187,6 @@ void moveToAreaTask(void *pvParameters) {
 }
 
 
-// bluetooth coms task runs every 100 ms
-void bluetoothTask(void *pvParameters) {
-  for (;;) { 
-    if (SerialBT.available()){
-      String command = SerialBT.readStringUntil('\n');
-      command.trim();
-      if ((command == "start") && offsetsCalculated) {
-        SerialBT.println("Start Command Received");
-        RUN = true;
-        // makes sure the task doesnt start again while it is aleady moving
-        if (!moving) {
-          vTaskResume(ultrasoundTaskHandle);
-          vTaskResume(moveToAreaTaskHandle);
-          moving = true;
-        }
-      } else if (command == "stop") {
-        SerialBT.println("Stop Command Received");
-        RUN = false;
-        stop_motors();
-        moving = false;
-      } else if (command == "ping") {
-        // confirms connection and prints out the offsets
-        SerialBT.println("Pong");
-      } else if (command == "calc_offsets") {
-        calculateInitialOffset();      
-        SerialBT.println("CAN: right offset: " + String(initialOffsetR));
-        SerialBT.println("CAN: left offset: " + String(initialOffsetL));
-        delay(1000);
-        offsetsCalculated = true;
-      } else if (command == "LHS") {
-        setOffsetBasedOnOneSide(LEFT);
-        SerialBT.println("CAN: right offset: " + String(initialOffsetR));
-        SerialBT.println("CAN: left offset: " + String(initialOffsetL));
-        offsetsCalculated = true;
-      } else if (command == "RHS") {
-        setOffsetBasedOnOneSide(RIGHT);
-        SerialBT.println("CAN: right offset: " + String(initialOffsetR));
-        SerialBT.println("CAN: left offset: " + String(initialOffsetL));
-        offsetsCalculated = true;
-
-      } else if (command == "BATTERY_HIGH") {
-        runtime=6500; // milliseconds
-        SerialBT.println("CAN: Battery high: set runtime to " + String(runtime/1000) + "s.");
-      
-      } else if (command == "BATTERY_MEDIUM") {
-        runtime=7000;
-        SerialBT.println("CAN: Battery medium: set runtime to " + String(runtime/1000) + "s.");
-      
-      } else if (command == "BATTERY_LOW") {
-        runtime = 8000;
-        SerialBT.println("CAN: Battery low: set runtime to " + String(runtime/1000) + "s.");
-
-      } else if (command == "BATTERY_CRITICAL") {
-        SerialBT.println("CAN: Battery needs recharged!");
-
-        offsetsCalculated = true;
-      }
-    }
-    // runs roughly every 100 ms
-    vTaskDelay(pdMS_TO_TICKS(100));
-  }
-}
-
-
 // locate Can task
 void locateCanTask(void *pvParameters) {
   bool canFound = false;
@@ -251,7 +211,7 @@ void locateCanTask(void *pvParameters) {
     currentCanDistance = 400.0;
     bool minima = false;
 
-    // sweeps the servo through 32 points
+    // sweeps the servo through 29 points
     // and takes an ultraound reading at each point
     for (int angle = minUsUltra; angle <= maxUsUltra; angle += step) {
       servoUltrasound.writeMicroseconds(angle);
@@ -461,7 +421,7 @@ void driveToCanTask(void *pvParameters) {
 
 void returnHomeTask(void *pvParameters){
   unsigned long startReturnTime;
-  unsigned long maxReturnTime = 600; // 9000;
+  unsigned long maxReturnTime = 600; 
 
   SerialBT.println("CAN: Returning home...");
 
@@ -539,9 +499,6 @@ void setup() {
 
   motorStartupSequence();
   delay(5000);
-
-  // calculateInitialOffset();
-  // delay(1000);
 
   // create tasks //
   // Create ultrasound task

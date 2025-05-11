@@ -108,3 +108,32 @@ void calculateInitialOffset(void) {
       }
     }
   }
+
+
+  // Interrupts for each ultrasound sensor
+void IRAM_ATTR echoL() { 
+  if (digitalRead(echoPinL)) {
+    startTimeL = micros();
+  } else {
+    endTimeL = micros();
+    receivedL = true;
+  }
+}
+
+void IRAM_ATTR echoR() { 
+  if (digitalRead(echoPinR)) {
+    startTimeR = micros();
+  } else {
+    endTimeR = micros();
+    receivedR = true;
+  }
+}
+
+void IRAM_ATTR echoF() { 
+  if (digitalRead(echoPinF)) {
+    startTimeF = micros();
+  } else {
+    endTimeF = micros();
+    receivedF = true;
+  }
+}

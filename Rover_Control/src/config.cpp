@@ -1,9 +1,5 @@
 #include "config.h"
 
-// -------------------- Logging --------------------
-LogEntry logData[MAX_LOG_ENTRIES];
-int logIndex = 0;
-bool logDataReady = false;
 
 // -------------------- Movement Flags --------------------
 bool RUN = false;
@@ -20,25 +16,20 @@ BluetoothSerial SerialBT;
 bool offsetsCalculated = false;
 
 // -------------------- Servo Parameters --------------------
-/*
-int minUs = 1200;
-int maxUs = 1700;
-*/
 
 int minUsSteer = 1140;
 int maxUsSteer = 1800;
 float neutralPos = 1450.0;
-bool back = false;
 
 int minUsUltra = 970;
 int maxUsUltra = 2100;
 
-//int minUsUltra = 1140;
-//int maxUsUltra = 1860;
-
-// -------------------- Servo Pins --------------------
+// -------------------- Servo Pins--------------------
 const int steeringServoPin = 32;
 const int ultrasoundServoPin = 33;
+
+// -------------------- ESC pin--------------------
+const int ESC_PWM_PIN = 14;
 
 // -------------------- Ultrasound Sensor Pins --------------------
 const int trigPinL = 16;
@@ -54,8 +45,7 @@ const int echoPinF = 22;
 float pos = 0;
 float posR = 0;
 float posL = 0;
-int landmarkCounter = -1;
-bool landmarkFlag = false;
+int runtime = 9000;
 
 // -------------------- finding can variables --------------------
 int canAngle = -1;
