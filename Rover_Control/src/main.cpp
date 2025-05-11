@@ -2,8 +2,7 @@
 #include "config.h"
 #include "ultrasonic.h"
 #include <cmath> 
-#include "main.h"
-
+#include "navigation.h"
 
 // bluetooth coms task runs every 100 ms
 void bluetoothTask(void *pvParameters) {
@@ -68,7 +67,7 @@ void bluetoothTask(void *pvParameters) {
   }
 }
 
-// Tasks
+// ultrasound task to use the left and right sensors to steer the car
 void ultrasoundTask(void *pvParameters) {
   float prevPos = 0;
   float newPos = 0;
@@ -189,160 +188,26 @@ void moveToAreaTask(void *pvParameters) {
 
 // locate Can task
 void locateCanTask(void *pvParameters) {
-  bool canFound = false;
-  const int step = 40;           
-  int distanceF = 0;
-  const int tolerance = 5;
-  const int minSequence = 4;
-  const int maxMismatches = 1;      // allowed mismatches in the sequence
-  
+  const int step = 40;  
+  bool canFound = false;         
 
-  // structure to store can values
-  struct scanValues {
-    int angle;
-    int distance;
-  };
-
-  scanValues scanData[29]; // store 29 values
   // outer for loop exists so that task can be resumed
   for (;;) {
     int count = 0;
-    canFound = false;
     currentCanDistance = 400.0;
-    bool minima = false;
 
-    // sweeps the servo through 29 points
-    // and takes an ultraound reading at each point
-    for (int angle = minUsUltra; angle <= maxUsUltra; angle += step) {
-      servoUltrasound.writeMicroseconds(angle);
-      vTaskDelay(pdMS_TO_TICKS(350));
+    // sweeps the front servo and stores the data to scanData 
+    // and returns the number of data points obtained
+    count = sweepFrontServo(step);
 
-      distanceF = getUltrasoundValue(trigPinF);
-
-      scanData[count] = {angle, distanceF};
-
-      // prints out the angle and distance to the GUI
-      SerialBT.println(String(angle) + "," + String(distanceF));
-      count++;
-
-      if (!RUN) {
-        vTaskSuspend(NULL);
-      }
-    }
-
-    int midIdx = -1;
-    // analyse data to find can
-    for (int start = 0; start < count - minSequence; start++) {
-      int refDist = scanData[start].distance;
-      int length = 1;
-      int mismatches = 0;
-      for (int i = start + 1; i < count; i++) {
-        if (abs(scanData[i].distance - refDist) <= tolerance) {
-          length++;
-        } else if (mismatches < maxMismatches){
-          mismatches++;
-        } else {
-          break;
-        }
-      }
-
-      // if the length of the sequence is greater than the min sequence length 
-      // check if it is a valid sequence
-      if (length >= minSequence) {
-        SerialBT.println("CAN: a sequence found");
-        int beforeIdx = start - 1;
-        int afterIdx = start + length;
-        int sumAfter = 0;
-        int sumBefore = 0;
-        int countA = 0;
-        int countB = 0;
-        int averageAfter = 0;
-        int averageBefore = 0;
-
-        float minValValid = 450;
-        // find average distance for comparison
-        for (int j = start; j < afterIdx; j++) {
-          if (scanData[j].distance < minValValid) {
-            minValValid = scanData[j].distance;
-          }
-        }
-
-        // calculate the average value after and before the sequence
-        // made up of 3 values or however many there are (start of the array / end of the array)
-        for (int k = afterIdx; k < afterIdx + 3; k++) {
-          if (k >= count) {
-            break;
-          }
-          sumAfter += scanData[k].distance;
-          countA++;
-        }
-
-        for (int k = beforeIdx; k > beforeIdx - 3; k--) {
-          if (k < 0) {
-            break;
-          }
-          sumBefore += scanData[k].distance;
-          countB++;
-        }
-
-        averageAfter = (countA > 0) ? (sumAfter / countA) : 0;
-        averageBefore = (countB > 0) ? (sumBefore / countB) : 0;
-        SerialBT.println("CAN: average after: " + String(averageAfter));
-        SerialBT.println("CAN: average before: " + String(averageBefore));
-
-        bool beforeHigher = (beforeIdx >= 0 && averageBefore > refDist + (tolerance));
-        bool afterHigher = (afterIdx < count && averageAfter > refDist + (tolerance));
-
-        // if it is a valid potentual can (minima)
-        if ((beforeHigher && afterHigher) && minValValid < 100) {
-          canFound = true;
-
-          // this idicates that it is a minima not just one sided
-          // this will give priority to sequences that are minima
-          
-          float minVal = 450;
-          // find average distance for comparison
-          for (int j = start; j < afterIdx; j++) {
-            if (scanData[j].distance < minVal) {
-              minVal = scanData[j].distance;
-            }
-          }
-          // if less than the last found dip then replace (as more likely to be can)
-          if (minima == false) {
-            currentCanDistance = minVal;
-            midIdx = start + length / 2;
-            canAngle = scanData[midIdx].angle;
-          } else if (minVal < currentCanDistance) {
-            currentCanDistance = minVal;
-            midIdx = start + length / 2;
-            canAngle = scanData[midIdx].angle;
-          }
-          minima = true;
-        // if only one sided and a true minima hasnt been found
-        } else if (((beforeHigher || afterHigher) && minima == false) && minValValid < 100) {
-          
-          canFound = true;
-          float minVal = 450;
-          // find average distance for comparison
-          for (int j = start; j < afterIdx; j++) {
-            if (scanData[j].distance < minVal) {
-              minVal = scanData[j].distance;
-            }
-          }
-          // if less than the last found dip then replace (as more likely to be can)
-          if (minVal < currentCanDistance) {
-            currentCanDistance = minVal;
-            midIdx = start + length / 2;
-            canAngle = scanData[midIdx].angle;
-          }
-        }
-        start += length;
-      }
-    }
+    // look for minima in the sequence 
+    // return true if valid sequence indicating the can was found
+    canFound = analyseForCan(count);
 
     if (canFound == false) {
+
+      // if no can found move forward for 1 second
       SerialBT.println("CAN: noT can found");
-      // add logic for failure to find can
       int maxSearchIncrement = 1000;
       int startSearchTime = millis();
       moving = true;
@@ -355,24 +220,31 @@ void locateCanTask(void *pvParameters) {
       while(RUN && (millis()-startSearchTime)<maxSearchIncrement){
         vTaskDelay(pdMS_TO_TICKS(20));
       }
+
+      // this flag causes the ultrasound task to end
       moving = false;
+
       stop_motors();
       // delay to allow ultrasound task to end
       vTaskDelay(pdMS_TO_TICKS(100));
 
     } else {
+  
       SerialBT.println("CAN: Can Detected at angle: " + String(canAngle));
+      // if can is closer than 7 cm stop and return home
       if (currentCanDistance < 7.0) {
+
         SerialBT.println("CAN: Arrived at can");
         servoUltrasound.writeMicroseconds(1570);
         delay(2000);
         vTaskResume(returnHomeTaskHandle);
+
       } else {
         vTaskResume(driveToCanTaskHandle);
       }
+      // suspend self
       vTaskSuspend(NULL);
     }
-    // suspend self
   }
 }
 

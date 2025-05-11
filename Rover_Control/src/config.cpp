@@ -15,6 +15,9 @@ BluetoothSerial SerialBT;
 // -------------- Check if offsets have been calculated --------------
 bool offsetsCalculated = false;
 
+// -------------------- can analysis structure --------------------
+scanValues scanData[29]; // store 29 values
+
 // -------------------- Servo Parameters --------------------
 
 int minUsSteer = 1140;

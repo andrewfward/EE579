@@ -5,17 +5,19 @@
 #include <BluetoothSerial.h>
 #include <ESP32Servo.h>
 
-
-
 // -------------------- definitions --------------------
 #define SPEED_OF_SOUND 340
-#define NUM_LANDMARKS 3
-#define MAX_LOG_ENTRIES 500
 #define LEFT 1
 #define RIGHT 0
 
 // -------------------- Structures -------------------
+ // structure to store can values
+  struct scanValues {
+    int angle;
+    int distance;
+  };
 
+ extern scanValues scanData[29]; // store 29 values
 
 
 // -------------------- Extern Variables --------------------
