@@ -11,14 +11,13 @@
 #define RIGHT 0
 
 // -------------------- Structures -------------------
- // structure to store can values
-  struct scanValues {
-    int angle;
-    int distance;
-  };
+// structure to store can values
+struct scanValues {
+  int angle;
+  int distance;
+};
 
- extern scanValues scanData[29]; // store 29 values
-
+extern scanValues scanData[29]; // store 29 values
 
 // -------------------- Extern Variables --------------------
 // Movement Flags

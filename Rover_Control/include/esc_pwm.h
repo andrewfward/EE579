@@ -21,5 +21,4 @@ int motorStartupSequence();
 int set_direction(bool direction);
 int stop_motors();
 
-
 #endif  // CONFIG_H
