@@ -69,8 +69,6 @@ void bluetoothTask(void *pvParameters) {
 
 // ultrasound task to use the left and right sensors to steer the car
 void ultrasoundTask(void *pvParameters) {
-  float prevPos = 0;
-  float newPos = 0;
   int distanceL = initialOffsetL;
   int distanceR = initialOffsetR;
   int prevDistanceR = 0;
@@ -101,8 +99,9 @@ void ultrasoundTask(void *pvParameters) {
       lastR = initialOffsetR;
     }
     loopCount++;
+
     // logic to trigger the ultrasound sensors (bassed off datasheet)
-    // uses the interrupts at the top
+    // uses the interrupts in ultrasonic
     if (toggleSensor == false) {
       distanceL = getUltrasoundValue(trigPinL);
 
@@ -116,6 +115,7 @@ void ultrasoundTask(void *pvParameters) {
       posL = distanceL - initialOffsetL;
     } else {
       distanceR = getUltrasoundValue(trigPinR);
+
       // adjusts offset if a large change is detected
       if (abs(distanceR - lastR) > maxChange) {
         int deltaR = distanceR - lastR;
@@ -155,13 +155,9 @@ void ultrasoundTask(void *pvParameters) {
 
 // task to move to the general area of the can 
 void moveToAreaTask(void *pvParameters) {
-  // need to add routine to check the front sensor for colisions in case the timing is wrong
-  float estimatedDistance = 0.0;
-  float targetDistance = 0.0;
 
   // adjust to change how far it moves
   unsigned long maxTime = runtime; // normal operation is 9000 
-  float estimatedSpeed = 0.01;
   unsigned long startTimeDistance = millis();
   
   set_direction(FORWARDS);
@@ -207,7 +203,7 @@ void locateCanTask(void *pvParameters) {
     if (canFound == false) {
 
       // if no can found move forward for 1 second
-      SerialBT.println("CAN: noT can found");
+      SerialBT.println("CAN: not can found");
       int maxSearchIncrement = 1000;
       int startSearchTime = millis();
       moving = true;
