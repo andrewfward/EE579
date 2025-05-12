@@ -1,9 +1,5 @@
 #include "config.h"
 
-// -------------------- Logging --------------------
-LogEntry logData[MAX_LOG_ENTRIES];
-int logIndex = 0;
-bool logDataReady = false;
 
 // -------------------- Movement Flags --------------------
 bool RUN = false;
@@ -19,43 +15,40 @@ BluetoothSerial SerialBT;
 // -------------- Check if offsets have been calculated --------------
 bool offsetsCalculated = false;
 
+// -------------------- can analysis structure --------------------
+scanValues scanData[29]; // store 29 values
+
 // -------------------- Servo Parameters --------------------
-/*
-int minUs = 1200;
-int maxUs = 1700;
-*/
 
 int minUsSteer = 1140;
 int maxUsSteer = 1800;
 float neutralPos = 1450.0;
-bool back = false;
 
 int minUsUltra = 970;
 int maxUsUltra = 2100;
 
-//int minUsUltra = 1140;
-//int maxUsUltra = 1860;
+// -------------------- Servo Pins--------------------
+const int steeringServoPin = 32;
+const int ultrasoundServoPin = 33;
 
-// -------------------- Servo Pins --------------------
-const int steeringServoPin = 18;
-const int ultrasoundServoPin = 5;
+// -------------------- ESC pin--------------------
+const int ESC_PWM_PIN = 14;
 
 // -------------------- Ultrasound Sensor Pins --------------------
-const int trigPinR = 23;
-const int echoPinR = 22;
+const int trigPinL = 16;
+const int echoPinL = 17;
 
-const int trigPinL = 21;
-const int echoPinL = 19;
+const int trigPinR = 26;
+const int echoPinR = 27;
 
-const int trigPinF = 15;
-const int echoPinF = 16;
+const int trigPinF = 23;
+const int echoPinF = 22;
 
 // -------------------- Position and Control Variables --------------------
 float pos = 0;
 float posR = 0;
 float posL = 0;
-int landmarkCounter = -1;
-bool landmarkFlag = false;
+int runtime = 9000;
 
 // -------------------- finding can variables --------------------
 int canAngle = -1;
