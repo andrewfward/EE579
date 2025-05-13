@@ -4,7 +4,7 @@
 #include <Arduino.h>
 #include "config.h"
 
-int getUltrasoundValue(int trigPin);
+int getUltrasonicValue(int trigPin);
 void calculateInitialOffset(void);
 void setOffsetBasedOnOneSide(bool);
 void IRAM_ATTR echoL();

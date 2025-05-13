@@ -90,7 +90,7 @@ extern volatile bool receivedL;
 extern volatile bool receivedF;
 
 // FreeRTOS Tasks
-extern TaskHandle_t ultrasoundTaskHandle;
+extern TaskHandle_t ultrasonicTaskHandle;
 extern TaskHandle_t moveToAreaTaskHandle;
 extern TaskHandle_t bluetoothTaskHandle;
 extern TaskHandle_t locateCanTaskHandle;

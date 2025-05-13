@@ -1,7 +1,7 @@
 #include "ultrasonic.h"
 
 // returns the distance from the called US sensor
-int getUltrasoundValue(int trigPin) {
+int getUltrasonicValue(int trigPin) {
     int distance = -1;
     digitalWrite(trigPin, LOW);
     delayMicroseconds(2);

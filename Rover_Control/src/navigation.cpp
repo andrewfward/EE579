@@ -9,7 +9,7 @@ int sweepFrontServo(int stepSize) {
       servoUltrasound.writeMicroseconds(angle);
       vTaskDelay(pdMS_TO_TICKS(350));
 
-      distanceF = getUltrasoundValue(trigPinF);
+      distanceF = getUltrasonicValue(trigPinF);
 
       scanData[numberOfSteps] = {angle, distanceF};
 

@@ -73,7 +73,7 @@ volatile bool receivedL = false;
 volatile bool receivedF = false;
 
 // -------------------- FreeRTOS Task Handles --------------------
-TaskHandle_t ultrasoundTaskHandle = NULL;
+TaskHandle_t ultrasonicTaskHandle = NULL;
 TaskHandle_t moveToAreaTaskHandle = NULL;
 TaskHandle_t bluetoothTaskHandle = NULL;
 TaskHandle_t locateCanTaskHandle = NULL;

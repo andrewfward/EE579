@@ -15,7 +15,7 @@ void bluetoothTask(void *pvParameters) {
         RUN = true;
         // makes sure the task doesnt start again while it is aleady moving
         if (!moving) {
-          vTaskResume(ultrasoundTaskHandle);
+          vTaskResume(ultrasonicTaskHandle);
           vTaskResume(moveToAreaTaskHandle);
           moving = true;
         }
@@ -68,7 +68,7 @@ void bluetoothTask(void *pvParameters) {
 }
 
 // ultrasound task to use the left and right sensors to steer the car
-void ultrasoundTask(void *pvParameters) {
+void ultrasonicTask(void *pvParameters) {
   int distanceL = initialOffsetL;
   int distanceR = initialOffsetR;
   int prevDistanceR = 0;
@@ -105,7 +105,7 @@ void ultrasoundTask(void *pvParameters) {
     // logic to trigger the ultrasound sensors (bassed off datasheet)
     // uses the interrupts in ultrasonic
     if (toggleSensor == false) {
-      distanceL = getUltrasoundValue(trigPinL);
+      distanceL = getUltrasonicValue(trigPinL);
 
       // adjusts offset if a large change is detected
       if (abs(distanceL - lastL) > maxChange) {
@@ -116,7 +116,7 @@ void ultrasoundTask(void *pvParameters) {
       // rather than combining then like it does now (functionally this is no different)
       posL = distanceL - initialOffsetL;
     } else {
-      distanceR = getUltrasoundValue(trigPinR);
+      distanceR = getUltrasonicValue(trigPinR);
 
       // adjusts offset if a large change is detected
       if (abs(distanceR - lastR) > maxChange) {
@@ -211,7 +211,7 @@ void locateCanTask(void *pvParameters) {
       moving = true;
 
       // resume steering task
-      vTaskResume(ultrasoundTaskHandle);
+      vTaskResume(ultrasonicTaskHandle);
       vTaskDelay(pdMS_TO_TICKS(100));
       set_direction(FORWARDS);
 
@@ -308,8 +308,8 @@ void returnHomeTask(void *pvParameters){
   int loopCount = 0;
 
   for(;;) {
-    int distanceL = getUltrasoundValue(trigPinL);
-    int distanceR = getUltrasoundValue(trigPinR);
+    int distanceL = getUltrasonicValue(trigPinL);
+    int distanceR = getUltrasonicValue(trigPinR);
     if (distanceR < 50) {
       servoSteering.writeMicroseconds(1400);
     } else if (distanceL < 50) {
@@ -373,15 +373,15 @@ void setup() {
   // create tasks //
   // Create ultrasound task
   xTaskCreatePinnedToCore(
-    ultrasoundTask,
-    "Side Ultrasound",
+    ultrasonicTask,
+    "Side Ultrasonic",
     4000,
     NULL,
     1,
-    &ultrasoundTaskHandle,
+    &ultrasonicTaskHandle,
     1
   );
-  vTaskSuspend(ultrasoundTaskHandle);
+  vTaskSuspend(ultrasonicTaskHandle);
 
   // Create move task
   xTaskCreatePinnedToCore(
