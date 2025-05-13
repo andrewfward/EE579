@@ -73,12 +73,14 @@ void ultrasoundTask(void *pvParameters) {
   int distanceR = initialOffsetR;
   int prevDistanceR = 0;
   int prevDistanceL = 0;
-  int maxChange = 8;
 
-  // controller gains
+  // adjustable parameters
   float Kp = 0.4;
   float Ki = 0.05;
 
+  int maxChange = 8;
+
+  // controller calc placeholders
   float error = 0.0;
   float eIntegral = 0.0;
   float timeStep = 65.0/1.0e3;

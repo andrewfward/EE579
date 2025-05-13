@@ -59,7 +59,7 @@ int initialOffsetR = 0;
 int initialOffsetL = 0;
 
 // -------------------- Steering --------------------
-int steeringAngle = 1470;
+int steeringAngle = 1450;
 
 // -------------------- Ultrasound Timing --------------------
 volatile long startTimeR = 0;
