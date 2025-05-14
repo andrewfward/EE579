@@ -71,8 +71,6 @@ void bluetoothTask(void *pvParameters) {
 void ultrasonicTask(void *pvParameters) {
   int distanceL = initialOffsetL;
   int distanceR = initialOffsetR;
-  int prevDistanceR = 0;
-  int prevDistanceL = 0;
 
   // adjustable parameters
   float Kp = 0.4;
